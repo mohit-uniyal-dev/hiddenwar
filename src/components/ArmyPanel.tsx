@@ -111,7 +111,14 @@ export function ArmyPanel({
         </div>
       )}
 
-      {selectedUnit === null && selectedType !== null && (
+      {selectedUnit === null && selectedType === "hq" && (
+        <p className="hint">
+          Your HQ cannot sit on your back row — it has to stay inside enemy tank range, or it
+          becomes unkillable and every stalemate goes to whoever hid it best.
+        </p>
+      )}
+
+      {selectedUnit === null && selectedType !== null && selectedType !== "hq" && (
         <p className="hint">
           Click a tile in your zone to place. Press <b>R</b> to set facing before you place.
         </p>

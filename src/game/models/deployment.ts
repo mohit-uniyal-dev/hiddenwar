@@ -6,8 +6,8 @@
  * engine rather than in a component.
  */
 
-import { BOARD, isInsideBoard, zoneOwner } from "../config/gameConfig.ts";
-import { MVP_ARMY, UNITS } from "../config/units.ts";
+import { BOARD, canAnchorHq, isInsideBoard, zoneOwner } from "../config/gameConfig.ts";
+import { MVP_ARMY, type Roster, UNITS } from "../config/units.ts";
 import { footprint } from "../engine/geometry.ts";
 import type { Deployment, PlacedUnit, Team, UnitTypeId } from "../types.ts";
 
@@ -51,6 +51,10 @@ export function canPlace(
     if (zoneOwner(t.row) !== team) return false;
   }
 
+  // The HQ may not sit on your back row (§B.2) — otherwise it lands in
+  // mortar-only territory and becomes effectively unkillable.
+  if (type === "hq" && !canAnchorHq(team, row)) return false;
+
   const occupied = new Set<number>();
   existing.forEach((unit, index) => {
     if (index === ignoreIndex) return;
@@ -65,14 +69,17 @@ export function canPlace(
   return true;
 }
 
-/** The exact army every player receives in Classic mode. */
-export function expectedCounts(): Map<UnitTypeId, number> {
+/** How many of each unit this roster allows. Defaults to the Classic army. */
+export function expectedCounts(roster: Roster = MVP_ARMY): Map<UnitTypeId, number> {
   const counts = new Map<UnitTypeId, number>();
-  for (const entry of MVP_ARMY) counts.set(entry.type, entry.count);
+  for (const entry of roster) counts.set(entry.type, entry.count);
   return counts;
 }
 
-export function validateDeployment(deployment: Deployment): ValidationResult {
+export function validateDeployment(
+  deployment: Deployment,
+  roster: Roster = MVP_ARMY,
+): ValidationResult {
   const errors: string[] = [];
   const counts = new Map<UnitTypeId, number>();
   const occupied = new Map<number, number>();
@@ -95,6 +102,10 @@ export function validateDeployment(deployment: Deployment): ValidationResult {
         errors.push(`${UNITS[unit.type].name} #${index} is in the enemy zone.`);
         return;
       }
+      if (unit.type === "hq" && !canAnchorHq(deployment.team, unit.row)) {
+        errors.push(`HQ #${index} may not sit on your back row.`);
+        return;
+      }
       const key = t.row * BOARD.cols + t.col;
       const other = occupied.get(key);
       if (other !== undefined) {
@@ -105,7 +116,7 @@ export function validateDeployment(deployment: Deployment): ValidationResult {
     }
   });
 
-  for (const [type, expected] of expectedCounts()) {
+  for (const [type, expected] of expectedCounts(roster)) {
     const actual = counts.get(type) ?? 0;
     if (actual !== expected) {
       errors.push(`Expected ${expected} x ${UNITS[type].name}, found ${actual}.`);

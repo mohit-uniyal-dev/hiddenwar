@@ -148,8 +148,46 @@ Rows  9-14   PLAYER A deployment zone      (72 tiles)
 One unit per tile. Hard rule. No stacking, ever.
 The HQ occupies 4 tiles (2x2) and must be fully inside your zone.
 Placement is legal anywhere in your own 6 rows, including the front row.
+EXCEPTION: the HQ may not sit on your back row (see below).
 Ready is irreversible.
 ```
+
+### The HQ back-row rule
+
+> **The HQ must leave at least one row of your own zone behind it.**
+> Legal anchors: rows 9–12 for Player A, rows 2–5 for Player B (displayed).
+
+**Why this exists.** Measured reachability of Player A's zone, from *any* legal
+Player B placement, ignoring cover and facing:
+
+| Row (displayed) | Enemy weapons that can reach it |
+| ---: | --- |
+| 9–10 | soldier, MG, tank, mortar |
+| 11–12 | tank, mortar |
+| **13–14** | **mortar only** |
+
+A 2×2 HQ anchored on row 13 sits entirely inside mortar-only territory — one
+weapon type out of four, **one unit out of nineteen**, with 35 HP. Kill that
+mortar and the HQ is permanently invulnerable.
+
+Worse, it corrupted the stalemate rules: the tiebreak ladder checks HQ HP
+first (§B.3), so an unreachable HQ is always at 100% and wins **every** tiebreak
+— even against a player who has more army left and did more damage.
+
+It also silently broke the balance table's own arithmetic. §C.4 costs out
+*"Tank vs HQ: 4 shots, ~9.8s solo, ~5.6s with both tanks"* — a calculation that
+only means anything if tanks can reach the HQ at all.
+
+This is a placement restriction, which §38 rightly warns against. It is
+justified because it does not restrict *tactics* — it defines where the win
+condition may stand, the way chess fixes where kings start. The organic
+alternatives were worse: buffing tank range 6→8 lets tanks cover an entire
+enemy zone from the front rank, and shrinking the deployment zone to 4 rows
+costs a third of the placement space to fix one tile.
+
+> **Invariant, enforced by `reachability.test.ts`:** every legal HQ anchor must
+> be reachable by tanks, not just by the mortar. That test fails if anyone
+> widens a zone, moves no man's land, or changes a weapon range.
 
 Deployment timer:
 

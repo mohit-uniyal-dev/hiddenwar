@@ -117,8 +117,12 @@ export const UNITS: Record<UnitTypeId, UnitSpec> = {
   },
 };
 
+/** A set of units a player is given to place. Classic mode uses MVP_ARMY;
+ *  puzzles hand out much smaller, deliberately shaped kits. */
+export type Roster = ReadonlyArray<{ readonly type: UnitTypeId; readonly count: number }>;
+
 /** The fixed army both players receive in Classic mode (§C.2). */
-export const MVP_ARMY: ReadonlyArray<{ type: UnitTypeId; count: number }> = [
+export const MVP_ARMY: Roster = [
   { type: "soldier", count: 5 },
   { type: "mg", count: 2 },
   { type: "tank", count: 2 },

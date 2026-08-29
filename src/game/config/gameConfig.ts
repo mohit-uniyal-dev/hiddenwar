@@ -29,6 +29,9 @@ export const BOARD = {
   teamARows: [8, 13] as const,
 } as const;
 
+/** The HQ footprint. Kept here so placement rules do not import the unit table. */
+export const HQ_SIZE = 2;
+
 export const RULES = {
   /** Hard cap: 1,200 ticks = 60 seconds (§B.3). */
   maxTicks: 1200,
@@ -54,6 +57,30 @@ export function isInsideBoard(row: number, col: number): boolean {
 
 export function isNoMansLand(row: number): boolean {
   return row >= BOARD.noMansLandRows[0] && row <= BOARD.noMansLandRows[1];
+}
+
+/**
+ * May a 2x2 HQ be ANCHORED here?
+ *
+ * The HQ must leave at least one row of your own zone behind it — it cannot sit
+ * on your back row.
+ *
+ * Without this rule the back two rows are reachable ONLY by the enemy mortar
+ * (measured in reachability.test.ts): one unit type out of four, one unit out
+ * of nineteen, with 35 HP. Killing that single mortar made an HQ parked there
+ * permanently invulnerable, and since the tiebreak ladder checks HQ HP first,
+ * an untouched HQ also won every stalemate automatically.
+ *
+ * It also restored an assumption the balance table already makes — §C.4 costs
+ * out "Tank vs HQ: 4 shots, ~5.6s with both tanks", which only means anything
+ * if tanks can reach the HQ.
+ */
+export function canAnchorHq(team: "A" | "B", row: number): boolean {
+  if (team === "A") {
+    // Blue's rear is the high rows; the enemy attacks from the north.
+    return row >= BOARD.teamARows[0] && row + HQ_SIZE - 1 <= BOARD.teamARows[1] - 1;
+  }
+  return row - 1 >= BOARD.teamBRows[0] && row + HQ_SIZE - 1 <= BOARD.teamBRows[1];
 }
 
 /** Which team may deploy on this row, or null for no man's land / off-board. */
