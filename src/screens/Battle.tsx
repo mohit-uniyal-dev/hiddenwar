@@ -6,6 +6,14 @@ import { useGame } from "../store/gameStore.ts";
 
 /** Held after the last event so the final state is legible before the report. */
 const HOLD_TICKS = 30;
+
+const REASON_TEXT: Record<string, string> = {
+  hqDestroyed: "HQ destroyed",
+  armyDestroyed: "Army wiped out",
+  deadAir: "No damage for 5s — decided on tiebreak",
+  timeCap: "60s time cap — decided on tiebreak",
+  mutualHqDestruction: "Both HQs fell on the same tick",
+};
 const COUNTDOWN_MS = 2600;
 
 export function BattleScreen() {
@@ -89,7 +97,23 @@ export function BattleScreen() {
   }));
 
   const totalStrength = frame.strength.A + frame.strength.B || 1;
-  const seconds = (tick / TICKS_PER_SECOND).toFixed(1);
+
+  // Playback runs on past the last event so the final board is legible, but the
+  // CLOCK must not — otherwise the battle screen reports a longer battle than
+  // the report does.
+  const shownTick = Math.min(tick, result.endedAtTick);
+  const seconds = (shownTick / TICKS_PER_SECOND).toFixed(1);
+
+  const winnerClass = result.winner === "A" ? "a" : result.winner === "B" ? "b" : "";
+  const winnerText =
+    result.winner === "draw" ? "Draw" : `${result.winner === "A" ? "Blue" : "Orange"} wins`;
+  const reasonText = REASON_TEXT[result.reason] ?? result.reason;
+
+  const status = finished
+    ? { label: "BATTLE OVER", tone: "over" }
+    : paused && countdown < 0
+      ? { label: "PAUSED", tone: "paused" }
+      : { label: `${seconds}s`, tone: "" };
 
   return (
     <div className="screen" style={{ flexDirection: "column", alignItems: "center" }}>
@@ -100,7 +124,7 @@ export function BattleScreen() {
         </div>
         <div className="hud-meta">
           <span>BLUE {frame.strength.A}</span>
-          <span>{seconds}s</span>
+          <span className={status.tone}>{status.label}</span>
           <span>{frame.strength.B} ORANGE</span>
         </div>
       </div>
@@ -111,6 +135,16 @@ export function BattleScreen() {
           {countdown >= 0 && (
             <div className="countdown">{countdown === 0 ? "BATTLE" : countdown}</div>
           )}
+          {/* The battle ending must be unmistakable. Before this existed the
+              only signal was a button label quietly changing. */}
+          {finished && (
+            <div className="overlay end">
+              <div className={`who ${winnerClass}`}>{winnerText}</div>
+              <div className="why">{reasonText}</div>
+              <div className="why">battle lasted {result.durationSeconds.toFixed(1)}s</div>
+            </div>
+          )}
+          {!finished && paused && countdown < 0 && <div className="overlay">Paused</div>}
         </Board>
       </div>
 
@@ -124,6 +158,7 @@ export function BattleScreen() {
             key={s}
             className={speed === s ? "on" : ""}
             onClick={() => setSpeed(s)}
+            disabled={finished}
           >
             {s}×
           </button>
@@ -133,12 +168,13 @@ export function BattleScreen() {
           onClick={() => {
             setTick(0);
             accumulated.current = 0;
+            setPaused(false);
           }}
         >
-          Restart
+          {finished ? "Watch again" : "Restart"}
         </button>
         <button type="button" className="primary" onClick={finish}>
-          {finished ? "Battle Report" : "Skip"}
+          {finished ? "Battle report →" : "Skip"}
         </button>
       </div>
     </div>

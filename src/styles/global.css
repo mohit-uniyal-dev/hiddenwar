@@ -758,3 +758,69 @@ table.report-table tr.dead td {
   height: calc(var(--tile) * 2 - 4px);
   z-index: 2;
 }
+
+/* ------------------------------------------------- battle state overlays */
+
+/*
+ * The end of a battle has to be unmistakable. Playback simply freezing, with
+ * only a button label to tell you why, reads as a bug.
+ */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  pointer-events: none;
+  background: rgba(28, 24, 16, 0.42);
+  backdrop-filter: blur(1.5px);
+  color: #fff6dd;
+  font-size: 1.6rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 700;
+  text-shadow: 0 3px 14px rgba(0, 0, 0, 0.8);
+  animation: overlay-in 260ms ease-out;
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.overlay .who {
+  font-size: clamp(1.8rem, 5vh, 2.8rem);
+  letter-spacing: 0.18em;
+}
+
+.overlay .who.a {
+  color: #7bb8f0;
+}
+.overlay .who.b {
+  color: #f5b263;
+}
+
+.overlay .why {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  font-weight: 500;
+  color: #ddd2b8;
+  text-transform: uppercase;
+}
+
+.hud-meta .paused {
+  color: #f0d68a;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+.hud-meta .over {
+  color: #f6e27a;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
