@@ -51,8 +51,8 @@ describe("damage multipliers (§C.1)", () => {
 describe("time to kill (§C.4)", () => {
   it("soldier vs soldier: mutual kill at tick 50 (2.5s)", () => {
     const result = simulateBattle({
-      playerA: deploy("A", [u("soldier", 8, 3, "N")]),
-      playerB: deploy("B", [u("soldier", 5, 3, "S")]),
+      playerA: deploy("A", [u("soldier", 5, 3, "N")]),
+      playerB: deploy("B", [u("soldier", 3, 3, "S")]),
       seed: 1,
     });
     // Two-phase resolution: simultaneous lethal hits BOTH land (§B.8).
@@ -63,8 +63,8 @@ describe("time to kill (§C.4)", () => {
 
   it("tank one-shots a sandbag at tick 28 (1.4s) and opens a lane", () => {
     const result = simulateBattle({
-      playerA: deploy("A", [u("tank", 9, 3, "N"), idleGuard("A")]),
-      playerB: deploy("B", [u("sandbag", 5, 3), idleGuard("B")]),
+      playerA: deploy("A", [u("tank", 6, 3, "N"), idleGuard("A")]),
+      playerB: deploy("B", [u("sandbag", 3, 3), idleGuard("B")]),
       seed: 1,
     });
     const hits = damageEvents(result.events);
@@ -79,8 +79,8 @@ describe("time to kill (§C.4)", () => {
 
   it("tank vs tank: three shots, mutual kill at tick 140 (7.0s)", () => {
     const result = simulateBattle({
-      playerA: deploy("A", [u("tank", 9, 3, "N")]),
-      playerB: deploy("B", [u("tank", 5, 3, "S")]),
+      playerA: deploy("A", [u("tank", 6, 3, "N")]),
+      playerB: deploy("B", [u("tank", 3, 3, "S")]),
       seed: 1,
     });
     expect(result.endedAtTick).toBe(140);
@@ -89,8 +89,8 @@ describe("time to kill (§C.4)", () => {
 
   it("soldier vs tank: 3 damage a shot — effectively hopeless", () => {
     const result = simulateBattle({
-      playerA: deploy("A", [u("soldier", 8, 3, "N"), idleGuard("A")]),
-      playerB: deploy("B", [u("tank", 5, 3, "W"), idleGuard("B")]),
+      playerA: deploy("A", [u("soldier", 5, 3, "N"), idleGuard("A")]),
+      playerB: deploy("B", [u("tank", 3, 3, "W"), idleGuard("B")]),
       seed: 1,
     });
     const hits = damageEvents(result.events);
@@ -109,11 +109,11 @@ describe("time to kill (§C.4)", () => {
 
   it("MG hits three separate targets for 8 each, in one volley at tick 7", () => {
     const result = simulateBattle({
-      playerA: deploy("A", [u("mg", 8, 4, "N"), idleGuard("A")]),
+      playerA: deploy("A", [u("mg", 5, 4, "N"), idleGuard("A")]),
       playerB: deploy("B", [
-        u("soldier", 5, 3, "W"),
-        u("soldier", 5, 4, "W"),
-        u("soldier", 5, 5, "W"),
+        u("soldier", 3, 3, "W"),
+        u("soldier", 3, 4, "W"),
+        u("soldier", 3, 5, "W"),
       ]),
       seed: 1,
     });
@@ -127,8 +127,8 @@ describe("time to kill (§C.4)", () => {
 describe("line of sight in combat (§B.4)", () => {
   it("living units never block — a soldier fires past a comrade", () => {
     const result = simulateBattle({
-      playerA: deploy("A", [u("soldier", 9, 3, "N"), u("soldier", 8, 3, "N")]),
-      playerB: deploy("B", [u("soldier", 5, 3, "W"), idleGuard("B")]),
+      playerA: deploy("A", [u("soldier", 6, 3, "N"), u("soldier", 5, 3, "N")]),
+      playerB: deploy("B", [u("soldier", 3, 3, "W"), idleGuard("B")]),
       seed: 1,
     });
     const attackers = new Set(damageEvents(result.events).map((e) => e.sourceId));
@@ -137,8 +137,8 @@ describe("line of sight in combat (§B.4)", () => {
 
   it("your own sandbag blocks you — walling yourself in means you cannot shoot out", () => {
     const result = simulateBattle({
-      playerA: deploy("A", [u("soldier", 9, 3, "N"), u("sandbag", 8, 3)]),
-      playerB: deploy("B", [u("soldier", 5, 3, "W"), idleGuard("B")]),
+      playerA: deploy("A", [u("soldier", 6, 3, "N"), u("sandbag", 5, 3)]),
+      playerB: deploy("B", [u("soldier", 3, 3, "W"), idleGuard("B")]),
       seed: 1,
     });
     expect(damageEvents(result.events)).toHaveLength(0);
@@ -149,8 +149,8 @@ describe("line of sight in combat (§B.4)", () => {
 
   it("an enemy sandbag is a valid, if inefficient, target", () => {
     const result = simulateBattle({
-      playerA: deploy("A", [u("soldier", 9, 3, "N"), idleGuard("A")]),
-      playerB: deploy("B", [u("sandbag", 8, 3), u("soldier", 5, 3, "W")]),
+      playerA: deploy("A", [u("soldier", 6, 3, "N"), idleGuard("A")]),
+      playerB: deploy("B", [u("sandbag", 3, 3), u("soldier", 1, 3, "W")]),
       seed: 1,
     });
     const hits = damageEvents(result.events);
@@ -162,14 +162,14 @@ describe("line of sight in combat (§B.4)", () => {
 describe("mortar (§B.9)", () => {
   it("targets the largest cluster by tactical value, not the nearest unit", () => {
     const result = simulateBattle({
-      playerA: deploy("A", [u("mortar", 11, 5, "N"), idleGuard("A")]),
+      playerA: deploy("A", [u("mortar", 8, 5, "N"), idleGuard("A")]),
       playerB: deploy("B", [
         // Three clustered soldiers, value 15 total...
-        u("soldier", 4, 3, "W"),
-        u("soldier", 4, 4, "W"),
-        u("soldier", 4, 5, "W"),
+        u("soldier", 2, 3, "W"),
+        u("soldier", 2, 4, "W"),
+        u("soldier", 2, 5, "W"),
         // ...and one lone soldier, value 5, that must NOT be chosen.
-        u("soldier", 2, 9, "W"),
+        u("soldier", 0, 9, "W"),
       ]),
       seed: 1,
     });
@@ -178,17 +178,17 @@ describe("mortar (§B.9)", () => {
     if (shell?.type !== "SHELL_FIRED") throw new Error("no shell");
     expect(shell.tick).toBe(40); // first shot at 50% of an 80-tick cooldown
     expect(shell.landsAtTick).toBe(60); // 1.0s flight
-    expect(shell.row).toBe(4);
+    expect(shell.row).toBe(2);
     expect(shell.col).toBe(4); // centre of the cluster
   });
 
   it("deals full damage to the centre and 50% to the neighbours", () => {
     const result = simulateBattle({
-      playerA: deploy("A", [u("mortar", 11, 5, "N"), idleGuard("A")]),
+      playerA: deploy("A", [u("mortar", 8, 5, "N"), idleGuard("A")]),
       playerB: deploy("B", [
-        u("soldier", 4, 3, "W"),
-        u("soldier", 4, 4, "W"),
-        u("soldier", 4, 5, "W"),
+        u("soldier", 2, 3, "W"),
+        u("soldier", 2, 4, "W"),
+        u("soldier", 2, 5, "W"),
       ]),
       seed: 1,
     });
@@ -200,7 +200,7 @@ describe("mortar (§B.9)", () => {
 
   it("damages a 2x2 HQ once per shell, not once per overlapping tile (§B.11)", () => {
     const result = simulateBattle({
-      playerA: deploy("A", [u("mortar", 10, 5, "N"), idleGuard("A")]),
+      playerA: deploy("A", [u("mortar", 8, 5, "N"), idleGuard("A")]),
       playerB: deploy("B", [u("hq", 0, 5), idleGuard("B")]),
       seed: 1,
     });
@@ -217,7 +217,7 @@ describe("mortar (§B.9)", () => {
 
   it("ignores line of sight — it fires over cover", () => {
     const result = simulateBattle({
-      playerA: deploy("A", [u("mortar", 11, 5, "N"), idleGuard("A")]),
+      playerA: deploy("A", [u("mortar", 8, 5, "N"), idleGuard("A")]),
       playerB: deploy("B", [u("sandbag", 5, 5), u("sandbag", 4, 5), u("soldier", 3, 5, "W")]),
       seed: 1,
     });
@@ -229,9 +229,9 @@ describe("mortar (§B.9)", () => {
 describe("victory conditions (§B.3)", () => {
   it("army destruction wins outright, regardless of HQ HP", () => {
     const result = simulateBattle({
-      playerA: deploy("A", [u("soldier", 8, 3, "N"), u("hq", 12, 5)]),
+      playerA: deploy("A", [u("soldier", 5, 3, "N"), u("hq", 7, 5)]),
       // B's soldier faces west and can never fight back.
-      playerB: deploy("B", [u("soldier", 5, 3, "W"), u("sandbag", 4, 3), u("hq", 0, 5)]),
+      playerB: deploy("B", [u("soldier", 3, 3, "W"), u("sandbag", 2, 3), u("hq", 0, 5)]),
       seed: 1,
     });
     expect(result.winner).toBe("A");
@@ -243,8 +243,8 @@ describe("victory conditions (§B.3)", () => {
 
   it("HQ destruction ends the battle", () => {
     const result = simulateBattle({
-      playerA: deploy("A", [u("tank", 9, 5, "N"), u("tank", 10, 5, "N"), idleGuard("A")]),
-      playerB: deploy("B", [u("hq", 4, 5), idleGuard("B")]),
+      playerA: deploy("A", [u("tank", 5, 5, "N"), u("tank", 6, 5, "N"), idleGuard("A")]),
+      playerB: deploy("B", [u("hq", 2, 5), idleGuard("B")]),
       seed: 1,
     });
     expect(result.winner).toBe("A");
@@ -265,8 +265,8 @@ describe("victory conditions (§B.3)", () => {
 
   it("breaks ties on HQ HP first", () => {
     const result = simulateBattle({
-      playerA: deploy("A", [u("hq", 12, 5), idleGuard("A")]),
-      playerB: deploy("B", [u("hq", 0, 5), u("soldier", 5, 3, "S"), idleGuard("B")]),
+      playerA: deploy("A", [u("hq", 7, 5), idleGuard("A")]),
+      playerB: deploy("B", [u("hq", 0, 5), u("soldier", 3, 3, "S"), idleGuard("B")]),
       seed: 1,
     });
     // Nobody can reach anybody; A and B both hold full HQs, so it falls through

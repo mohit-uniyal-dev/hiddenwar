@@ -131,68 +131,95 @@ ROUNDING   Damage is computed in floats (base x type multiplier),
 ## B.1 Battlefield and deployment zones
 
 ```text
-Grid: 12 columns x 14 rows
+Grid: 12 columns x 9 rows
 
-Rows  1-6    PLAYER B deployment zone      (72 tiles)
-Rows  7-8    NO MAN'S LAND                 (nothing may ever be placed here)
-Rows  9-14   PLAYER A deployment zone      (72 tiles)
+Rows  1-4    PLAYER B deployment zone      (48 tiles)
+Row   5      NO MAN'S LAND                 (nothing may ever be placed here)
+Rows  6-9    PLAYER A deployment zone      (48 tiles)
 ```
 
-72 tiles per side for 22 occupied tiles of army — comfortable, but not empty.
+48 tiles per side for 22 occupied tiles of army — 46% density.
 
-**Why exactly 2 rows of no man's land:** it is the minimum engagement gap that makes front-row placement aggressive but legal. It is also the reason Soldier range moves from 3 to 4 (see §C.3) — at range 3, a soldier threatens only the enemy's front row, which produced too many units that never fire.
+### Why the board shrank from 12x14
+
+The original 6-deep zones with a 2-row gap left most of the board inert. Measured
+enemy rows reachable, by the row you place a unit on:
+
+| Your row | Soldier | MG | Tank | Mortar |
+| --- | ---: | ---: | ---: | ---: |
+| 9 (front) | 2 | 2 | 4 | 6 |
+| 10 | 1 | 1 | 3 | 6 |
+| 11 | **0** | **0** | 2 | 6 |
+| 12 | **0** | **0** | 1 | 5 |
+| 13 | **0** | **0** | **0** | 4 |
+| 14 | **0** | **0** | **0** | 3 |
+
+Soldiers and machine guns contributed **nothing** from row 11 back. Seven of the
+nine combat units in a Classic army were competing for two rows, while four rows
+held sandbags, an HQ and scenery. Deployment collapsed to "line the infantry up
+on rows 9–10", which is not a decision.
+
+The governing arithmetic is:
+
+```text
+useful infantry rows  =  weapon range - no man's land depth  =  4 - 2  =  2
+```
+
+Note what that does *not* contain: zone depth. Making the zone shallower removes
+dead space but does not widen the infantry band — only changing range or the gap
+does that. Hence **both** changes: zones 6 → 4, and no man's land 2 → 1.
+
+Reachability on the 12x9 board:
+
+| Your row | Reachable by |
+| --- | --- |
+| 6 (front) | soldier, MG, tank, mortar |
+| 7 | soldier, MG, tank, mortar |
+| 8 | soldier, MG, tank, mortar |
+| 9 (back) | tank, mortar |
+
+Infantry is now useful on 3 rows of 4. The rear row stays tank-and-artillery
+territory, which preserves the intended layering — infantry hold the line, tanks
+reach mid-field, artillery reaches deep — without wasting a third of the board.
+
+**The measured effect on balance was large.** On the symmetric full-army fixture
+the mortar's share of all damage fell from **56% to 33%**, with tanks at 29%,
+MGs at 21% and soldiers at 17%. Open question #5 in the design review — the
+mortar carrying turtle-breaker, splash-punisher and indirect-fire duty alone —
+substantially resolved itself once infantry could reach the enemy at all.
 
 ## B.2 Occupancy and placement
 
 ```text
 One unit per tile. Hard rule. No stacking, ever.
 The HQ occupies 4 tiles (2x2) and must be fully inside your zone.
-Placement is legal anywhere in your own 6 rows, including the front row.
-EXCEPTION: the HQ may not sit on your back row (see below).
+Placement is legal anywhere in your own 4 rows, including the front row.
 Ready is irreversible.
 ```
 
-### The HQ back-row rule
+### The HQ needs no placement rule
 
-> **The HQ must leave at least one row of your own zone behind it.**
-> Legal anchors: rows 9–12 for Player A, rows 2–5 for Player B (displayed).
+A 2x2 HQ may be anchored anywhere its footprint fits inside your zone.
 
-**Why this exists.** Measured reachability of Player A's zone, from *any* legal
-Player B placement, ignoring cover and facing:
+On the 12x14 board this was not safe. The back two rows were reachable **only**
+by the enemy mortar — one weapon type out of four, one unit out of nineteen,
+with 35 HP — so an HQ parked there was effectively invulnerable once that mortar
+died. Worse, the tiebreak ladder checks HQ HP first (§B.3), so an untouched HQ
+also won every stalemate automatically, even against a player with more army
+left and more damage dealt. That required an explicit "the HQ may not sit on
+your back row" rule.
 
-| Row (displayed) | Enemy weapons that can reach it |
-| ---: | --- |
-| 9–10 | soldier, MG, tank, mortar |
-| 11–12 | tank, mortar |
-| **13–14** | **mortar only** |
+The 12x9 board removes the need for it. With 4-deep zones and a 1-row gap, a
+tank on the front rank covers the **entire** enemy zone, so every tile — and
+therefore every legal HQ placement — is contestable by something other than
+artillery. The artificial restriction was deleted.
 
-A 2×2 HQ anchored on row 13 sits entirely inside mortar-only territory — one
-weapon type out of four, **one unit out of nineteen**, with 35 HP. Kill that
-mortar and the HQ is permanently invulnerable.
+> **Invariant, enforced by `reachability.test.ts`:** every row of a deployment
+> zone must be reachable by tanks, not just by the mortar. That test fails if
+> anyone deepens a zone, widens no man's land, or shortens a weapon range —
+> any of which would silently reopen the sanctuary.
 
-Worse, it corrupted the stalemate rules: the tiebreak ladder checks HQ HP
-first (§B.3), so an unreachable HQ is always at 100% and wins **every** tiebreak
-— even against a player who has more army left and did more damage.
-
-It also silently broke the balance table's own arithmetic. §C.4 costs out
-*"Tank vs HQ: 4 shots, ~9.8s solo, ~5.6s with both tanks"* — a calculation that
-only means anything if tanks can reach the HQ at all.
-
-This is a placement restriction, which §38 rightly warns against. It is
-justified because it does not restrict *tactics* — it defines where the win
-condition may stand, the way chess fixes where kings start. The organic
-alternatives were worse: buffing tank range 6→8 lets tanks cover an entire
-enemy zone from the front rank, and shrinking the deployment zone to 4 rows
-costs a third of the placement space to fix one tile.
-
-> **Invariant, enforced by `reachability.test.ts`:** every legal HQ anchor must
-> be reachable by tanks, not just by the mortar. That test fails if anyone
-> widens a zone, moves no man's land, or changes a weapon range.
-
-Deployment timer:
-
-- **Hotseat: no timer.**
-- **Online: 120 seconds.** Units left unplaced at expiry are forfeited — except the HQ, which auto-places at the rearmost valid position.
+---
 
 ## B.3 Victory, stalemate, and draws
 
@@ -455,7 +482,7 @@ Per player: **5 Soldiers, 2 Machine Guns, 2 Tanks, 1 Mortar, 8 Sandbags, 1 HQ.**
 
 | Change | Reason |
 | --- | --- |
-| Soldier range **3 → 4** | With a 2-row no man's land, range 3 threatens only one enemy row. Too many soldiers never fired. |
+| Soldier range **3 → 4** | Range 3 threatened too little of the enemy zone across the gap; too many soldiers never fired. |
 | Mortar max range **7 → 10** | Kills the unreachable-back-row sanctuary (§B.12). |
 | Sandbag cost **2 → 3** | Eight near-free blockers undervalued the wall. |
 | Armor stat **deleted** | Replaced entirely by type multipliers (§B.10). |

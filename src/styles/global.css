@@ -29,7 +29,7 @@
   --arc-line: rgba(32, 46, 40, 0.75);
   --arc-blocked: rgba(120, 110, 95, 0.22);
 
-  --tile: clamp(26px, 4.4vh, 46px);
+  --tile: clamp(30px, 6.2vh, 58px);
   --radius: 3px;
 
   --font: "Barlow Condensed", "Oswald", "Arial Narrow", system-ui, sans-serif;
@@ -180,8 +180,7 @@ button.danger {
 
 .board {
   display: grid;
-  grid-template-columns: repeat(12, var(--tile));
-  grid-template-rows: repeat(14, var(--tile));
+  /* grid-template-* is set inline from BOARD in Board.tsx */
   background: var(--paper);
   border: 3px solid var(--board-edge);
   border-radius: var(--radius);
@@ -965,4 +964,77 @@ ul.objectives li.fail {
 
 .puzzle-verdict.failed .stamp {
   color: var(--warn);
+}
+
+/*
+ * Minimum-range dead zone (the mortar's, at 3 tiles).
+ *
+ * Left unmarked this was actively misleading — a blank hole around the tube
+ * reads as "this weapon has no reach", when a mortar on the front row in fact
+ * covers every tile of the enemy zone. Marked as struck-through ground.
+ */
+.tile.arc-dead::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border: 1px dashed rgba(150, 62, 40, 0.55);
+  border-radius: 2px;
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(168, 52, 31, 0.16),
+    rgba(168, 52, 31, 0.16) 3px,
+    transparent 3px,
+    transparent 7px
+  );
+  pointer-events: none;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  border-top: 1px solid var(--paper-line);
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+}
+
+.legend .row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.legend .sw {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  border-radius: 2px;
+}
+
+.legend .sw.covered {
+  background: var(--arc);
+  border: 1.5px solid var(--arc-line);
+}
+
+.legend .sw.shadowed {
+  background: var(--arc-blocked);
+  border: 1px dashed rgba(120, 110, 95, 0.6);
+}
+
+.legend .sw.dead {
+  border: 1px dashed rgba(150, 62, 40, 0.55);
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(168, 52, 31, 0.2),
+    rgba(168, 52, 31, 0.2) 3px,
+    transparent 3px,
+    transparent 7px
+  );
+}
+
+.legend b {
+  font-family: var(--mono);
+  font-weight: 600;
 }

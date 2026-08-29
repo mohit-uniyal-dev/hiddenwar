@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Board, type RenderUnit } from "../components/Board.tsx";
-import { TICKS_PER_SECOND } from "../game/config/gameConfig.ts";
+import { BOARD, TICKS_PER_SECOND } from "../game/config/gameConfig.ts";
 import { type Frame, frameAt, hqKillTick } from "../game/engine/playback.ts";
 import { useGame } from "../store/gameStore.ts";
 
@@ -193,7 +193,12 @@ function FxLayer({ frame }: { frame: Frame }) {
   }
 
   return (
-    <svg className="fx-layer" viewBox="0 0 12 14" preserveAspectRatio="none" aria-hidden="true">
+    <svg
+      className="fx-layer"
+      viewBox={`0 0 ${BOARD.cols} ${BOARD.rows}`}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
       <title>Battle effects</title>
       {frame.tracers.map((t) => {
         const from = pos.get(t.fromId);

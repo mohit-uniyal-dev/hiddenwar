@@ -247,7 +247,7 @@ export const useGame = create<GameState>((set, get) => ({
     const kit = activeKit(state);
     const deployment = deployments[activeTeam];
     const units: PlacedUnit[] = [...deployment.units];
-    const rows = activeTeam === "A" ? [8, 9, 10, 11, 12, 13] : [5, 4, 3, 2, 1, 0];
+    const rows = activeTeam === "A" ? [5, 6, 7, 8] : [3, 2, 1, 0];
 
     for (const [type, count] of remaining(deployment, kit)) {
       for (let n = 0; n < count; n++) {

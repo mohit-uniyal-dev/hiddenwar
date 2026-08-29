@@ -66,7 +66,7 @@ export function DeploymentScreen() {
         facing: selectedFacing,
       });
     }
-    return { covered: [], blocked: [] };
+    return { covered: [], blocked: [], deadZone: [] };
   }, [
     activeTeam,
     deployment.units,
@@ -131,6 +131,7 @@ export function DeploymentScreen() {
           units={units}
           arc={preview.covered}
           arcBlocked={preview.blocked}
+          arcDead={preview.deadZone}
           interactiveZone={activeTeam}
           hovered={hovered}
           hoverLegal={hoverLegal}
@@ -163,6 +164,11 @@ export function DeploymentScreen() {
         deployment={deployment}
         selectedType={selectedType}
         selectedUnit={selectedUnit}
+        coverage={{
+          covered: preview.covered.length,
+          shadowed: preview.blocked.length,
+          dead: preview.deadZone.length,
+        }}
         onSelectType={selectType}
         onRotate={rotateSelected}
         onRemove={() => selectedIndex !== null && removeAt(selectedIndex)}

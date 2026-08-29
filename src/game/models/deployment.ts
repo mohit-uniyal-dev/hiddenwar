@@ -6,7 +6,7 @@
  * engine rather than in a component.
  */
 
-import { BOARD, canAnchorHq, isInsideBoard, zoneOwner } from "../config/gameConfig.ts";
+import { BOARD, isInsideBoard, zoneOwner } from "../config/gameConfig.ts";
 import { MVP_ARMY, type Roster, UNITS } from "../config/units.ts";
 import { footprint } from "../engine/geometry.ts";
 import type { Deployment, PlacedUnit, Team, UnitTypeId } from "../types.ts";
@@ -50,10 +50,6 @@ export function canPlace(
   for (const t of tiles) {
     if (zoneOwner(t.row) !== team) return false;
   }
-
-  // The HQ may not sit on your back row (§B.2) — otherwise it lands in
-  // mortar-only territory and becomes effectively unkillable.
-  if (type === "hq" && !canAnchorHq(team, row)) return false;
 
   const occupied = new Set<number>();
   existing.forEach((unit, index) => {
@@ -100,10 +96,6 @@ export function validateDeployment(
       }
       if (owner !== deployment.team) {
         errors.push(`${UNITS[unit.type].name} #${index} is in the enemy zone.`);
-        return;
-      }
-      if (unit.type === "hq" && !canAnchorHq(deployment.team, unit.row)) {
-        errors.push(`HQ #${index} may not sit on your back row.`);
         return;
       }
       const key = t.row * BOARD.cols + t.col;

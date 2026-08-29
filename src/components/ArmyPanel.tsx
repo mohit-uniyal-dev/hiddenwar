@@ -21,6 +21,8 @@ interface Props {
   deployment: Deployment;
   selectedType: UnitTypeId | null;
   selectedUnit: PlacedUnit | null;
+  /** Live counts from the arc preview, so coverage is never left to inference. */
+  coverage?: { covered: number; shadowed: number; dead: number };
   onSelectType: (type: UnitTypeId | null) => void;
   onRotate: () => void;
   onRemove: () => void;
@@ -36,6 +38,7 @@ export function ArmyPanel({
   deployment,
   selectedType,
   selectedUnit,
+  coverage,
   onSelectType,
   onRotate,
   onRemove,
@@ -108,6 +111,33 @@ export function ArmyPanel({
               </>
             )}
           </dl>
+          {coverage !== undefined && inspect.pattern !== undefined && (
+            <div className="legend">
+              <div className="row">
+                <span className="sw covered" />
+                <span>
+                  can hit <b>{coverage.covered}</b> tiles
+                </span>
+              </div>
+              {coverage.shadowed > 0 && (
+                <div className="row">
+                  <span className="sw shadowed" />
+                  <span>
+                    <b>{coverage.shadowed}</b> shadowed by your own cover
+                  </span>
+                </div>
+              )}
+              {coverage.dead > 0 && (
+                <div className="row">
+                  <span className="sw dead" />
+                  <span>
+                    <b>{coverage.dead}</b> too close — min range {inspect.minRange}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="row-actions">
             <button type="button" onClick={onRotate}>
               Rotate (R)
@@ -119,14 +149,7 @@ export function ArmyPanel({
         </div>
       )}
 
-      {selectedUnit === null && selectedType === "hq" && (
-        <p className="hint">
-          Your HQ cannot sit on your back row — it has to stay inside enemy tank range, or it
-          becomes unkillable and every stalemate goes to whoever hid it best.
-        </p>
-      )}
-
-      {selectedUnit === null && selectedType !== null && selectedType !== "hq" && (
+      {selectedUnit === null && selectedType !== null && (
         <p className="hint">
           Click a tile in your zone to place. Press <b>R</b> to set facing before you place.
         </p>

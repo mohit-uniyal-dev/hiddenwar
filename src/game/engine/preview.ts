@@ -10,6 +10,7 @@
  * see where they put their sandbags.
  */
 
+import { isInsideBoard } from "../config/gameConfig.ts";
 import { mulberry32 } from "../rng/mulberry32.ts";
 import type { Coord, Deployment, PlacedUnit, Team } from "../types.ts";
 import { buildState } from "./state.ts";
@@ -20,9 +21,17 @@ export interface ArcPreview {
   readonly covered: Coord[];
   /** Tiles inside the footprint that its own side's cover shadows out. */
   readonly blocked: Coord[];
+  /**
+   * Tiles too CLOSE to hit — inside the weapon's minimum range.
+   *
+   * Only the mortar has one (min 3), and leaving it unmarked was actively
+   * misleading: the hole around the tube read as "this weapon has no reach",
+   * when in fact a mortar on the front row covers every tile of the enemy zone.
+   */
+  readonly deadZone: Coord[];
 }
 
-const EMPTY_PREVIEW: ArcPreview = { covered: [], blocked: [] };
+const EMPTY_PREVIEW: ArcPreview = { covered: [], blocked: [], deadZone: [] };
 
 export function arcPreview(
   team: Team,
@@ -47,8 +56,22 @@ export function arcPreview(
   const covered = visibleTiles(state, unit);
   const key = (c: Coord) => `${c.row}:${c.col}`;
   const coveredKeys = new Set(covered.map(key));
+
+  const minRange = unit.spec.minRange ?? 1;
+  const deadZone: Coord[] = [];
+  if (minRange > 1) {
+    for (let row = candidate.row - minRange + 1; row <= candidate.row + minRange - 1; row++) {
+      for (let col = candidate.col - minRange + 1; col <= candidate.col + minRange - 1; col++) {
+        if (!isInsideBoard(row, col)) continue;
+        if (row === candidate.row && col === candidate.col) continue;
+        deadZone.push({ row, col });
+      }
+    }
+  }
+
   return {
     covered,
     blocked: all.filter((c) => !coveredKeys.has(key(c))),
+    deadZone,
   };
 }

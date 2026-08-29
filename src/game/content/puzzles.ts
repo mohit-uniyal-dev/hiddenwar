@@ -69,15 +69,15 @@ export const PUZZLES: readonly Puzzle[] = [
     teaches: "Facing and range",
     brief:
       "One soldier, one target. A soldier fires in a straight line along its facing, out to 4 tiles — and nothing else.",
-    hint: "No man's land eats two rows of that range. Place well forward, and check the arc preview before you commit.",
+    hint: "Column matters as much as row: a line weapon only ever hits the column it faces down.",
     kit: [{ type: "soldier", count: 1 }],
     enemy: {
       team: "B",
-      // Facing west, into empty board: it will never shoot back.
-      units: [u("soldier", 5, 5, "W")],
+      // Facing west into empty board: it will never shoot back.
+      units: [u("soldier", 3, 5, "W")],
     },
     objectives: [{ kind: "destroyAllEnemies", label: "Destroy the enemy force" }],
-    referenceSolution: [u("soldier", 8, 5, "N")],
+    referenceSolution: [u("soldier", 5, 5, "N")],
   },
 
   {
@@ -86,14 +86,16 @@ export const PUZZLES: readonly Puzzle[] = [
     teaches: "The machine gun cone",
     brief:
       "Two targets, four columns apart, and one machine gun. Its cone starts narrow and widens with distance: 3, 3, 5, 5 tiles.",
-    hint: "At point blank the cone is only 3 wide. You need the far end of it, where it opens to 5.",
+    hint: "Standing closer makes the cone NARROWER. Drop back a row and it opens from 3 wide to 5.",
     kit: [{ type: "mg", count: 1 }],
     enemy: {
       team: "B",
-      units: [u("soldier", 5, 3, "W"), u("soldier", 5, 7, "E")],
+      units: [u("soldier", 3, 3, "W"), u("soldier", 3, 7, "E")],
     },
     objectives: [{ kind: "destroyAllEnemies", label: "Destroy BOTH targets" }],
-    referenceSolution: [u("mg", 8, 5, "N")],
+    // From the front rank the cone is only 3 wide at this distance and misses
+    // both. One row back it reaches 5 and catches them.
+    referenceSolution: [u("mg", 6, 5, "N")],
   },
 
   {
@@ -101,19 +103,19 @@ export const PUZZLES: readonly Puzzle[] = [
     name: "Break the Line",
     teaches: "Cover, and what breaks it",
     brief:
-      "A sandbag wall, and a soldier sheltering behind it. Rifle fire barely scratches sandbags — a tank shell removes one outright.",
-    hint: "Your soldiers will happily plink at the wall for 3 damage a shot. Put the tank where it matters and let it do the work.",
+      "A sandbag wall with a soldier sheltering behind it. Rifle fire barely scratches sandbags — a tank shell removes one outright.",
+    hint: "Line up the tank on the column the defender is standing in. The wall falls first, then the ray carries on to what it was hiding.",
     kit: [
       { type: "tank", count: 1 },
       { type: "soldier", count: 2 },
     ],
     enemy: {
       team: "B",
-      units: [u("sandbag", 5, 4), u("sandbag", 5, 5), u("sandbag", 5, 6), u("soldier", 4, 5, "S")],
+      units: [u("sandbag", 3, 4), u("sandbag", 3, 5), u("sandbag", 3, 6), u("soldier", 2, 5, "S")],
     },
     // Only the defender has to fall — the flanking sandbags may be left standing.
     objectives: [{ kind: "win", label: "Win the battle" }],
-    referenceSolution: [u("tank", 8, 5, "N"), u("soldier", 8, 3, "N"), u("soldier", 8, 7, "N")],
+    referenceSolution: [u("tank", 5, 5, "N"), u("soldier", 5, 4, "N"), u("soldier", 5, 6, "N")],
   },
 
   {
@@ -122,36 +124,38 @@ export const PUZZLES: readonly Puzzle[] = [
     teaches: "Silencing artillery",
     brief:
       "An enemy mortar is ranged in on your half, and it fires over cover — sandbags will not save your HQ. It is also the flimsiest thing on the board at 35 HP.",
-    hint: "Two rifles in the same column both reach it, and living units never block each other. Kill it before it ever fires.",
+    hint: "Living units never block each other, so two rifles stacked in the same column both reach it. Kill it before its first shot at 2 seconds.",
     kit: [
       { type: "soldier", count: 2 },
       { type: "hq", count: 1 },
     ],
     enemy: {
       team: "B",
-      units: [u("mortar", 5, 5, "S"), SENTRY],
+      units: [u("mortar", 3, 5, "S"), SENTRY],
     },
     objectives: [
       { kind: "hqSurvives", label: "Your HQ survives" },
       { kind: "loseAtMost", label: "Lose no units", value: 0 },
     ],
-    referenceSolution: [u("soldier", 8, 5, "N"), u("soldier", 9, 5, "N"), u("hq", 11, 9)],
+    referenceSolution: [u("soldier", 5, 5, "N"), u("soldier", 6, 5, "N"), u("hq", 7, 9)],
   },
 
   {
-    id: "deep-strike",
-    name: "Deep Strike",
-    teaches: "Artillery reach",
+    id: "danger-close",
+    name: "Danger Close",
+    teaches: "Minimum range, and firing lanes",
     brief:
-      "Their HQ is dug in at the back of their zone. Rifles reach two enemy rows, tanks reach four — only the mortar reaches all six.",
-    hint: "The mortar has a maximum range as well as a minimum. Sitting at the very back of your own zone puts the target out of reach.",
+      "A tank, and only a mortar to answer it. Rifles cannot dent armour — but a mortar cannot fire at anything closer than 3 tiles either.",
+    hint: "Too close and the shell has nowhere to arc. Directly ahead of the tank and you are in its lane. You need to be neither.",
     kit: [{ type: "mortar", count: 1 }],
     enemy: {
       team: "B",
-      units: [u("hq", 1, 5), SENTRY],
+      units: [u("tank", 3, 5, "S")],
     },
-    objectives: [{ kind: "destroyEnemyHq", label: "Destroy the enemy HQ" }],
-    referenceSolution: [u("mortar", 8, 5, "N")],
+    objectives: [{ kind: "destroyAllEnemies", label: "Destroy the tank" }],
+    // Three tiles away so the shell can arc, and off column 5 so the tank
+    // never acquires a target.
+    referenceSolution: [u("mortar", 6, 3, "N")],
   },
 ];
 

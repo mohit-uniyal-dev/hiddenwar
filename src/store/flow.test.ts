@@ -82,31 +82,30 @@ describe("hotseat flow", () => {
 
   it("refuses illegal placements", () => {
     store().selectType("soldier");
-    // No man's land is rows 6-7 and is permanently off limits (§B.1).
-    store().place(6, 3);
-    store().place(7, 3);
+    // No man's land is row 4 and is permanently off limits (§B.1).
+    store().place(4, 3);
     // The enemy half is not yours to fill.
     store().place(2, 3);
     expect(store().deployments.A.units).toHaveLength(0);
 
-    store().place(9, 3);
+    store().place(6, 3);
     expect(store().deployments.A.units).toHaveLength(1);
 
     // One unit per tile, hard rule.
-    store().place(9, 3);
+    store().place(6, 3);
     expect(store().deployments.A.units).toHaveLength(1);
   });
 
   it("never exceeds the fixed army allowance", () => {
     store().selectType("tank");
-    for (let col = 0; col < 8; col++) store().place(9, col);
+    for (let col = 0; col < 8; col++) store().place(6, col);
     const tanks = store().deployments.A.units.filter((u) => u.type === "tank");
     expect(tanks).toHaveLength(2);
   });
 
   it("rotates a placed unit through all four facings", () => {
     store().selectType("soldier");
-    store().place(9, 3);
+    store().place(6, 3);
     store().selectPlaced(0);
     const seen = new Set<string>();
     for (let i = 0; i < 4; i++) {
@@ -119,43 +118,43 @@ describe("hotseat flow", () => {
 
 describe("arc preview", () => {
   it("shows a soldier's four-tile firing line", () => {
-    const preview = arcPreview("A", [], { type: "soldier", row: 9, col: 3, facing: "N" });
+    const preview = arcPreview("A", [], { type: "soldier", row: 8, col: 3, facing: "N" });
     expect(preview.covered).toHaveLength(4);
-    expect(preview.covered.map((c) => c.row)).toEqual([8, 7, 6, 5]);
+    expect(preview.covered.map((c) => c.row)).toEqual([7, 6, 5, 4]);
     expect(preview.blocked).toHaveLength(0);
   });
 
   it("shadows the lane behind your own sandbag — you cannot shoot through your wall", () => {
-    const wall = { type: "sandbag" as const, row: 8, col: 3, facing: "N" as const };
-    const shooter = { type: "soldier" as const, row: 9, col: 3, facing: "N" as const };
+    const wall = { type: "sandbag" as const, row: 7, col: 3, facing: "N" as const };
+    const shooter = { type: "soldier" as const, row: 8, col: 3, facing: "N" as const };
     const preview = arcPreview("A", [wall, shooter], shooter);
     // The ray stops at the wall: the sandbag tile is shown, nothing past it.
     expect(preview.covered).toHaveLength(1);
-    expect(preview.covered[0]).toEqual({ row: 8, col: 3 });
+    expect(preview.covered[0]).toEqual({ row: 7, col: 3 });
     expect(preview.blocked.length).toBeGreaterThan(0);
   });
 
   it("gives the MG a 16-tile cone of widths 3,3,5,5", () => {
-    const preview = arcPreview("A", [], { type: "mg", row: 9, col: 5, facing: "N" });
+    const preview = arcPreview("A", [], { type: "mg", row: 8, col: 5, facing: "N" });
     const byRow = new Map<number, number>();
     for (const tile of preview.covered) byRow.set(tile.row, (byRow.get(tile.row) ?? 0) + 1);
-    expect(byRow.get(8)).toBe(3);
     expect(byRow.get(7)).toBe(3);
-    expect(byRow.get(6)).toBe(5);
+    expect(byRow.get(6)).toBe(3);
     expect(byRow.get(5)).toBe(5);
+    expect(byRow.get(4)).toBe(5);
     expect(preview.covered).toHaveLength(16);
   });
 
   it("gives the mortar an omnidirectional footprint that ignores cover", () => {
-    const preview = arcPreview("A", [], { type: "mortar", row: 11, col: 5, facing: "N" });
+    const preview = arcPreview("A", [], { type: "mortar", row: 8, col: 5, facing: "N" });
     expect(preview.blocked).toHaveLength(0);
     // Chebyshev ring 3..10, clipped to the board.
-    expect(preview.covered.length).toBeGreaterThan(60);
-    expect(preview.covered.some((c) => c.row > 11)).toBe(true); // fires backwards too
+    expect(preview.covered.length).toBeGreaterThan(50);
+    expect(preview.covered.some((c) => c.row === 0)).toBe(true); // reaches their back row
   });
 
   it("returns nothing for a structure", () => {
-    const preview = arcPreview("A", [], { type: "sandbag", row: 9, col: 3, facing: "N" });
+    const preview = arcPreview("A", [], { type: "sandbag", row: 6, col: 3, facing: "N" });
     expect(preview.covered).toHaveLength(0);
   });
 });
@@ -215,15 +214,15 @@ describe("puzzle mode", () => {
 
   it("caps placement at the kit, not the Classic army", () => {
     store().selectType("mg");
-    store().place(8, 5);
-    store().place(9, 2);
+    store().place(6, 5);
+    store().place(7, 2);
     expect(store().deployments.A.units).toHaveLength(1);
     expect(isComplete(store().deployments.A, activeKit(store()))).toBe(true);
   });
 
   it("refuses units that are not in the kit", () => {
     store().selectType("tank");
-    store().place(9, 5);
+    store().place(6, 5);
     expect(store().deployments.A.units).toHaveLength(0);
   });
 
@@ -240,7 +239,7 @@ describe("puzzle mode", () => {
 
     // Same MG, one column off: the cone now misses the right-hand target.
     const bad = simulateBattle({
-      playerA: { team: "A", units: [{ type: "mg", row: 8, col: 3, facing: "N" }] },
+      playerA: { team: "A", units: [{ type: "mg", row: 6, col: 3, facing: "N" }] },
       playerB: puzzle.enemy,
       seed: 1,
     });

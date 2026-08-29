@@ -23,6 +23,8 @@ interface Props {
   arc?: Coord[];
   /** Tiles inside the footprint that cover shadows out. */
   arcBlocked?: Coord[];
+  /** Tiles too close to hit — inside minimum range. */
+  arcDead?: Coord[];
   /** Deployment zone that accepts clicks, or null in battle. */
   interactiveZone?: Team | null;
   hovered?: Coord | null;
@@ -40,6 +42,7 @@ export function Board({
   units,
   arc = [],
   arcBlocked = [],
+  arcDead = [],
   interactiveZone = null,
   hovered = null,
   hoverLegal = true,
@@ -51,6 +54,7 @@ export function Board({
 }: Props) {
   const arcSet = new Set(arc.map(key));
   const blockedSet = new Set(arcBlocked.map(key));
+  const deadSet = new Set(arcDead.map(key));
   const byTile = new Map<string, RenderUnit>();
   for (const u of units) byTile.set(key(u), u);
 
@@ -68,6 +72,7 @@ export function Board({
         owner === "A" ? "zone-a" : owner === "B" ? "zone-b" : "nml",
         arcSet.has(k) ? "arc" : "",
         blockedSet.has(k) ? "arc-blocked" : "",
+        !arcSet.has(k) && deadSet.has(k) ? "arc-dead" : "",
         canInteract ? (hoverLegal ? "placeable" : "illegal") : "",
         isHovered ? "hovered" : "",
       ]
@@ -109,7 +114,16 @@ export function Board({
   }
 
   return (
-    <div className="board" onMouseLeave={() => onTileLeave?.()}>
+    <div
+      className="board"
+      style={{
+        // Driven from BOARD so the grid can never drift out of sync with the
+        // rules the way a hardcoded `repeat(12, ...)` in CSS would.
+        gridTemplateColumns: `repeat(${BOARD.cols}, var(--tile))`,
+        gridTemplateRows: `repeat(${BOARD.rows}, var(--tile))`,
+      }}
+      onMouseLeave={() => onTileLeave?.()}
+    >
       {tiles}
       <div
         className="front-line"

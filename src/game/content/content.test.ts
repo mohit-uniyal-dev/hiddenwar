@@ -7,6 +7,8 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { BOARD } from "../config/gameConfig.ts";
+import { UNITS } from "../config/units.ts";
 import { simulateBattle } from "../engine/simulate.ts";
 import { validateDeployment } from "../models/deployment.ts";
 import type { Deployment } from "../types.ts";
@@ -30,9 +32,10 @@ describe("bot formations", () => {
     // opponent. Play it against a mirror of itself flipped to Blue.
     const mirror: Deployment = {
       team: "A",
+      // Reflect across the board, accounting for multi-tile footprints.
       units: bot.deployment.units.map((unit) => ({
         ...unit,
-        row: 13 - unit.row - (unit.type === "hq" ? 1 : 0),
+        row: BOARD.rows - 1 - unit.row - (UNITS[unit.type].size - 1),
         facing: unit.facing === "S" ? "N" : unit.facing === "N" ? "S" : unit.facing,
       })),
     };

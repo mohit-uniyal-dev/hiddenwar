@@ -4,16 +4,21 @@
  *   "Every tile in the enemy zone must be reachable by at least one weapon
  *    from at least one legal placement."
  *
- * The letter of that rule is satisfied by the mortar alone — which turns out
- * not to be enough. If exactly ONE unit type in a 19-piece army can touch a
- * tile, and that unit is the squishiest thing on the board, then that tile is
- * a sanctuary in every practical sense.
+ * The letter of that rule was once satisfied by the mortar alone, which is not
+ * enough: if exactly ONE unit type in a 19-piece army can touch a tile, and
+ * that unit is the squishiest thing on the board, that tile is a sanctuary in
+ * every practical sense. On the old 6-deep board an HQ parked on the back row
+ * was mortar-only, and had to be banned there by an explicit placement rule.
+ *
+ * The 12x9 board fixes it by geometry instead: with 4-deep zones and a 1-row
+ * gap, a tank on the front rank covers the entire enemy zone, so every tile is
+ * contestable and the placement rule was deleted.
  *
  * These tests measure reachability by BREADTH, not just existence.
  */
 
 import { describe, expect, it } from "vitest";
-import { BOARD, canAnchorHq, zoneOwner } from "../config/gameConfig.ts";
+import { BOARD, zoneOwner } from "../config/gameConfig.ts";
 import { UNITS } from "../config/units.ts";
 import { chebyshev } from "../engine/geometry.ts";
 import type { UnitTypeId } from "../types.ts";
@@ -50,7 +55,7 @@ describe("reachability of Blue's zone by Orange", () => {
   const rows: number[] = [];
   for (let r = BOARD.teamARows[0]; r <= BOARD.teamARows[1]; r++) rows.push(r);
 
-  it("satisfies the letter of the §B.12 invariant — every tile is reachable", () => {
+  it("every tile is reachable — the §B.12 invariant", () => {
     for (const row of rows) {
       for (let col = 0; col < BOARD.cols; col++) {
         expect(reachedBy(row, col, "B").length, `row ${row} col ${col}`).toBeGreaterThan(0);
@@ -58,67 +63,44 @@ describe("reachability of Blue's zone by Orange", () => {
     }
   });
 
-  it("documents how thin that reachability actually is", () => {
-    const summary = rows.map((row) => ({
-      row,
-      displayRow: row + 1,
-      weapons: reachedBy(row, 5, "B"),
-    }));
-
-    // Printed so the numbers are visible when the suite runs.
-    for (const s of summary) {
-      console.log(`row ${String(s.displayRow).padStart(2)}: ${s.weapons.join(", ")}`);
+  it("EVERY row is reachable by tanks, not just by the mortar", () => {
+    // This is the guarantee the board shape buys, and the reason the old
+    // "HQ may not sit on your back row" rule could be deleted. It fails if
+    // anyone deepens a zone, widens no man's land, or shortens tank range.
+    for (const row of rows) {
+      expect(reachedBy(row, 5, "B"), `row ${row + 1}`).toContain("tank");
     }
-
-    // The back two rows are mortar-only. One unit per army, 35 HP.
-    const backRows = summary.filter((s) => s.weapons.length === 1);
-    expect(backRows.map((s) => s.displayRow)).toEqual([13, 14]);
-    for (const s of backRows) expect(s.weapons).toEqual(["mortar"]);
   });
 
-  it("the back-row HQ anchor — now illegal — WOULD have been mortar-only", () => {
-    // A 2x2 HQ anchored at row 12 occupies rows 12-13 (displayed 13-14).
-    // Every one of its tiles sits outside tank range from any legal enemy tile,
-    // which is exactly why canAnchorHq forbids it.
-    for (const tile of [
-      { row: 12, col: 5 },
-      { row: 12, col: 6 },
-      { row: 13, col: 5 },
-      { row: 13, col: 6 },
-    ]) {
-      expect(reachedBy(tile.row, tile.col, "B")).toEqual(["mortar"]);
+  it("documents the reach layering", () => {
+    for (const row of rows) {
+      console.log(`row ${String(row + 1).padStart(2)}: ${reachedBy(row, 5, "B").join(", ")}`);
     }
-    expect(canAnchorHq("A", 12)).toBe(false);
+    // Infantry still cannot reach the rear — that layering is deliberate
+    // (infantry hold the line, tanks reach mid, artillery reaches deep).
+    const front = reachedBy(BOARD.teamARows[0], 5, "B");
+    expect(front).toContain("soldier");
+    const back = reachedBy(BOARD.teamARows[1], 5, "B");
+    expect(back).not.toContain("soldier");
+    expect(back).toContain("tank");
   });
 });
 
-/**
- * The guarantee the placement rule buys. This is the test that would fail if
- * anyone widened a deployment zone, moved no man's land, or changed a range —
- * any of which could silently reopen the sanctuary.
- */
-describe("every LEGAL HQ placement is reachable by more than the mortar", () => {
-  const cases: { team: "A" | "B"; row: number }[] = [];
-  for (let row = 0; row < BOARD.rows; row++) {
-    for (const team of ["A", "B"] as const) {
-      if (canAnchorHq(team, row)) cases.push({ team, row });
-    }
-  }
+describe("every legal HQ placement is contestable", () => {
+  // A 2x2 HQ can be anchored anywhere its footprint fits inside the zone.
+  const anchors: number[] = [];
+  for (let r = BOARD.teamARows[0]; r <= BOARD.teamARows[1] - 1; r++) anchors.push(r);
 
-  it("has legal anchors for both teams", () => {
-    expect(cases.filter((c) => c.team === "A").map((c) => c.row)).toEqual([8, 9, 10, 11]);
-    expect(cases.filter((c) => c.team === "B").map((c) => c.row)).toEqual([1, 2, 3, 4]);
+  it("has four rows of zone and three legal anchors", () => {
+    expect(BOARD.teamARows[1] - BOARD.teamARows[0] + 1).toBe(4);
+    expect(anchors).toEqual([5, 6, 7]);
   });
 
-  it.each(cases)("$team HQ anchored at row $row can be reached by tanks", ({ team, row }) => {
-    const enemy = team === "A" ? "B" : "A";
-    // The HQ shares one HP pool across all four tiles, so ONE reachable tile
-    // is enough for tanks to fight for the win condition.
+  it.each(anchors)("an HQ anchored at row %i is reachable by tanks", (row) => {
     const tiles = [
       { row, col: 5 },
       { row: row + 1, col: 5 },
     ];
-    const anyTankReach = tiles.some((t) => reachedBy(t.row, t.col, enemy).includes("tank"));
-    expect(anyTankReach).toBe(true);
+    expect(tiles.some((t) => reachedBy(t.row, t.col, "B").includes("tank"))).toBe(true);
   });
 });

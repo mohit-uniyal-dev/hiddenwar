@@ -2,7 +2,7 @@
 
 > Battleship meets auto-chess in the trenches: secretly dig in your army, then watch two battle plans collide in thirty seconds.
 
-A hidden-deployment tactical auto-battler. Two players secretly place a fixed army on their half of a 12×14 board. **Units never move.** Both sides commit, the board is revealed, and the battle resolves automatically from position, facing and firing lanes alone.
+A hidden-deployment tactical auto-battler. Two players secretly place a fixed army on their half of a 12×9 board. **Units never move.** Both sides commit, the board is revealed, and the battle resolves automatically from position, facing and firing lanes alone.
 
 - **Design:** [hidden-front-game-design-roadmap.md](hidden-front-game-design-roadmap.md) — Part I is the canonical rulebook, Part II the tech stack, Part III the backlog.
 - **Review:** [hidden-front-design-review.md](hidden-front-design-review.md) — findings, open questions, playtest plan.
@@ -20,7 +20,7 @@ pnpm dev          # http://localhost:5173
 | --- | --- |
 | `pnpm dev` | Vite dev server |
 | `pnpm build` | Typecheck + production bundle into `dist/` |
-| `pnpm test` | Vitest, 109 tests |
+| `pnpm test` | Vitest, 104 tests |
 | `pnpm test:watch` | Vitest in watch mode |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm lint` | Biome |
@@ -108,14 +108,16 @@ Protected by a golden-log snapshot: any unintentional change to battle resolutio
 
 ## Notes for the next session
 
-**The balance signal so far.** On the symmetric full-army test fixture, the mortar deals **56% of all damage** and takes 7 of 16 kills — it is the last combatant standing on both sides. The front lines annihilate each other in the first ~2.5 seconds and the mortars then duel for another 36. That is one arbitrary formation rather than a playtest, but it is exactly the failure mode flagged as open question #5 in the review: the mortar carries three jobs (turtle-breaker, splash-punisher, indirect fire) on a one-per-army unit. Worth watching before touching any other number.
+**The board was reshaped from 12×14 to 12×9** after playtest feedback that everything had to go in the front two rows. It was worse than it felt: soldiers and MGs could reach *zero* enemy tiles from row 11 back, so seven of nine combat units competed for two rows while four rows held scenery. Zones went 6 → 4 deep and no man's land 2 → 1, because `useful infantry rows = weapon range − gap depth` and that formula does not contain zone depth — shrinking the zone alone removes dead space without widening the band.
 
-The same fixture runs **39s** against a 15–30s target and produces **14 lane openings** against a target of 2–4. Both are visible on the battle report as red metrics.
+**Balance improved sharply as a side effect.** On the symmetric fixture the mortar's share of all damage fell from **56% to 33%** (tank 29%, MG 21%, soldier 17%), and lane openings from 14 to 2. Open question #5 in the review — the mortar carrying turtle-breaker, splash-punisher and indirect-fire duty alone — largely resolved itself once infantry could reach the enemy at all.
+
+**The open metric is duration.** Matches now run **31–47s** against a 15–30s target. Nothing has been tuned for it yet, deliberately: the levers below are guesses until someone plays a few dozen games.
 
 **Tuning levers, in preferred order** (§C.5): sandbag HP 60→45, tank cooldown 56→48 ticks, mortar cooldown 80→70. If battles end *too* fast, raise soldier HP 30→35 first — never slow the tanks, the breach cadence is the drama engine.
 
 **One doc correction found by the tests.** §C.4 says a soldier "cannot realistically kill a tank" at ~40s. Precisely: it kills it at tick 790 (39.5s), which is *inside* the 60s cap. The claim is "too slow to matter", not "impossible".
 
-**The HQ back-row exploit, found in playtest and now closed.** Measured reachability of Blue's zone from any legal Orange placement: rows 9–10 are open to all four weapons, rows 11–12 to tanks and the mortar, and rows **13–14 to the mortar alone**. An HQ parked there was touchable by exactly one unit out of nineteen — and because the tiebreak ladder checks HQ HP first, an untouched HQ also won every stalemate automatically. The HQ may no longer sit on your back row; [reachability.test.ts](src/game/__tests__/reachability.test.ts) asserts every legal anchor stays inside tank range, so the sanctuary cannot silently reopen if a zone, gap, or range is ever changed.
+**The HQ back-row exploit, found in playtest and now closed by geometry.** On the old board an HQ on the back row was reachable only by the enemy mortar, and since the tiebreak ladder checks HQ HP first, an untouched HQ won every stalemate automatically. It was patched with a placement rule, then the rule was **deleted** when the board shrank: with 4-deep zones and a 1-row gap a tank on the front rank covers the whole enemy zone, so every tile is contestable. Organic beats artificial. [reachability.test.ts](src/game/__tests__/reachability.test.ts) asserts every row stays inside tank range, so the sanctuary cannot silently reopen if a zone, gap, or range is ever changed.
 
-**Ranges deliberately left alone.** No man's land costs every weapon two rows of reach, which looks like a bug and is not: infantry fight at the line, tanks reach mid-field, artillery reaches deep, and each unit gets a distinct spatial role. Making distance ignore the gap would also drop the mortar's minimum range below 3 against the enemy front rank, inverting its role. If playtests ever show idle units above 15%, the lever is narrowing no man's land to one row — not a global range buff.
+**Weapon ranges deliberately left alone.** The layering is intentional — infantry hold the line, tanks reach mid-field, artillery reaches deep. Making distance ignore no man's land would also drop the mortar's minimum range below 3 against the enemy front rank, inverting its role.
