@@ -1,4 +1,4 @@
-import { UNITS } from "../game/config/units.ts";
+import { MVP_ARMY, type Roster, UNITS } from "../game/config/units.ts";
 import type { Deployment, PlacedUnit, Team, UnitTypeId } from "../game/types.ts";
 import { isComplete, remainingFor } from "../store/gameStore.ts";
 import { GLYPH } from "./UnitToken.tsx";
@@ -14,6 +14,10 @@ const PRIORITY_LABEL: Record<string, string> = {
 
 interface Props {
   team: Team;
+  /** The roster being placed: the Classic army, or a puzzle's smaller kit. */
+  kit?: Roster;
+  /** Puzzle mode has no "Ready" ceremony — the label reads differently. */
+  readyLabel?: string;
   deployment: Deployment;
   selectedType: UnitTypeId | null;
   selectedUnit: PlacedUnit | null;
@@ -27,6 +31,8 @@ interface Props {
 
 export function ArmyPanel({
   team,
+  kit = MVP_ARMY,
+  readyLabel = "Ready",
   deployment,
   selectedType,
   selectedUnit,
@@ -37,15 +43,17 @@ export function ArmyPanel({
   onAutoFill,
   onReady,
 }: Props) {
-  const left = remainingFor(deployment);
-  const ready = isComplete(deployment);
+  const left = remainingFor(deployment, kit);
+  const ready = isComplete(deployment, kit);
+  // A puzzle kit lists only the pieces it hands you.
+  const order = ORDER.filter((type) => kit.some((entry) => entry.type === type));
   const inspect = selectedUnit !== null ? UNITS[selectedUnit.type] : null;
 
   return (
     <div className="panel army">
       <h2>{team === "A" ? "Blue Force" : "Orange Force"} — Army</h2>
 
-      {ORDER.map((type) => {
+      {order.map((type) => {
         const spec = UNITS[type];
         const count = left.get(type) ?? 0;
         const done = count === 0;
@@ -140,10 +148,12 @@ export function ArmyPanel({
       </div>
       <div className="row-actions">
         <button type="button" className="primary" disabled={!ready} onClick={onReady}>
-          {ready ? "Ready" : `${countLeft(left)} left`}
+          {ready ? readyLabel : `${countLeft(left)} left`}
         </button>
       </div>
-      {ready && <p className="hint">Ready is irreversible — your facing choices lock in.</p>}
+      {ready && readyLabel === "Ready" && (
+        <p className="hint">Ready is irreversible — your facing choices lock in.</p>
+      )}
     </div>
   );
 }

@@ -6,16 +6,18 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
+import { evaluatePuzzle, puzzleById } from "../game/content/puzzles.ts";
 import { arcPreview } from "../game/engine/preview.ts";
+import { simulateBattle } from "../game/engine/simulate.ts";
 import { validateDeployment } from "../game/models/deployment.ts";
-import { isComplete, useGame } from "./gameStore.ts";
+import { activeKit, isComplete, useGame } from "./gameStore.ts";
 
 const store = () => useGame.getState();
 
 describe("hotseat flow", () => {
   beforeEach(() => {
     store().backHome();
-    store().startMatch();
+    store().startHotseat();
   });
 
   it("starts on the deployment screen as Blue", () => {
@@ -155,5 +157,93 @@ describe("arc preview", () => {
   it("returns nothing for a structure", () => {
     const preview = arcPreview("A", [], { type: "sandbag", row: 9, col: 3, facing: "N" });
     expect(preview.covered).toHaveLength(0);
+  });
+});
+
+describe("bot mode", () => {
+  beforeEach(() => {
+    store().backHome();
+    store().startBot("the-line");
+  });
+
+  it("loads the bot's formation as Orange and starts you deploying", () => {
+    expect(store().phase).toBe("deploy");
+    expect(store().mode).toBe("bot");
+    expect(store().activeTeam).toBe("A");
+    expect(store().deployments.B.units.length).toBeGreaterThan(0);
+    expect(validateDeployment(store().deployments.B).ok).toBe(true);
+  });
+
+  it("skips the handoff and fights immediately on Ready", () => {
+    store().autoFill();
+    store().ready();
+    expect(store().phase).toBe("battle");
+    expect(store().result).not.toBeNull();
+  });
+
+  it("keeps the bot's formation on a rematch, and reloads only yours", () => {
+    store().autoFill();
+    const mine = store().deployments.A.units;
+    const theirs = store().deployments.B.units;
+    store().ready();
+    store().finish();
+    store().rematch();
+    expect(store().deployments.A.units).toEqual(mine);
+    expect(store().deployments.B.units).toEqual(theirs);
+  });
+
+  it("ignores an unknown bot id", () => {
+    store().backHome();
+    const before = store().phase;
+    store().startBot("nope");
+    expect(store().phase).toBe(before);
+  });
+});
+
+describe("puzzle mode", () => {
+  beforeEach(() => {
+    store().backHome();
+    store().startPuzzle("wide-angle");
+  });
+
+  it("shows the enemy formation and hands you only the kit", () => {
+    expect(store().mode).toBe("puzzle");
+    expect(store().deployments.B.units).toHaveLength(2);
+    const kit = activeKit(store());
+    expect(kit).toEqual([{ type: "mg", count: 1 }]);
+  });
+
+  it("caps placement at the kit, not the Classic army", () => {
+    store().selectType("mg");
+    store().place(8, 5);
+    store().place(9, 2);
+    expect(store().deployments.A.units).toHaveLength(1);
+    expect(isComplete(store().deployments.A, activeKit(store()))).toBe(true);
+  });
+
+  it("refuses units that are not in the kit", () => {
+    store().selectType("tank");
+    store().place(9, 5);
+    expect(store().deployments.A.units).toHaveLength(0);
+  });
+
+  it("is solved by the reference solution and unsolved by a bad one", () => {
+    const puzzle = puzzleById("wide-angle");
+    if (puzzle === undefined) throw new Error("missing puzzle");
+
+    const good = simulateBattle({
+      playerA: { team: "A", units: puzzle.referenceSolution },
+      playerB: puzzle.enemy,
+      seed: 1,
+    });
+    expect(evaluatePuzzle(puzzle, good).solved).toBe(true);
+
+    // Same MG, one column off: the cone now misses the right-hand target.
+    const bad = simulateBattle({
+      playerA: { team: "A", units: [{ type: "mg", row: 8, col: 3, facing: "N" }] },
+      playerB: puzzle.enemy,
+      seed: 1,
+    });
+    expect(evaluatePuzzle(puzzle, bad).solved).toBe(false);
   });
 });

@@ -5,31 +5,39 @@
  */
 
 import { create } from "zustand";
-import { UNITS } from "../game/config/units.ts";
+import { MVP_ARMY, type Roster, UNITS } from "../game/config/units.ts";
+import { botById } from "../game/content/bots.ts";
+import { type Puzzle, puzzleById } from "../game/content/puzzles.ts";
 import { type BattleResult, simulateBattle } from "../game/engine/simulate.ts";
 import { canPlace, emptyDeployment, expectedCounts } from "../game/models/deployment.ts";
 import type { Deployment, Direction, PlacedUnit, Team, UnitTypeId } from "../game/types.ts";
 
 export type Phase = "home" | "deploy" | "handoff" | "battle" | "results";
+export type Mode = "hotseat" | "bot" | "puzzle";
 
 interface GameState {
   phase: Phase;
-  /** Whose deployment screen is showing. */
+  mode: Mode;
+  botId: string | null;
+  puzzleId: string | null;
+
+  /** Whose deployment screen is showing. Always "A" outside hotseat. */
   activeTeam: Team;
   deployments: Record<Team, Deployment>;
-  /** The formation each player ends the match with, so a rematch can preload it (§D.2). */
+  /** Each side's last formation, so a rematch can preload it (§D.2). */
   lastFormation: Record<Team, Deployment | null>;
 
   // --- deployment UI ---
   selectedType: UnitTypeId | null;
   selectedFacing: Direction;
-  /** Index into the active team's placed units, for rotate/remove. */
   selectedIndex: number | null;
 
   result: BattleResult | null;
 
   // --- actions ---
-  startMatch: () => void;
+  startHotseat: () => void;
+  startBot: (botId: string) => void;
+  startPuzzle: (puzzleId: string) => void;
   rematch: () => void;
   backHome: () => void;
   selectType: (type: UnitTypeId | null) => void;
@@ -47,71 +55,122 @@ interface GameState {
 
 const FACINGS: Direction[] = ["N", "E", "S", "W"];
 
-function remaining(deployment: Deployment): Map<UnitTypeId, number> {
-  const left = expectedCounts();
+function remaining(deployment: Deployment, kit: Roster): Map<UnitTypeId, number> {
+  const left = expectedCounts(kit);
   for (const unit of deployment.units) {
     left.set(unit.type, (left.get(unit.type) ?? 0) - 1);
   }
   return left;
 }
 
-export function remainingFor(deployment: Deployment): Map<UnitTypeId, number> {
-  return remaining(deployment);
+export function remainingFor(deployment: Deployment, kit: Roster = MVP_ARMY) {
+  return remaining(deployment, kit);
 }
 
-export function isComplete(deployment: Deployment): boolean {
-  for (const count of remaining(deployment).values()) {
+export function isComplete(deployment: Deployment, kit: Roster = MVP_ARMY): boolean {
+  for (const count of remaining(deployment, kit).values()) {
     if (count !== 0) return false;
   }
   return true;
 }
 
-/** Default facing: toward the enemy. */
+/** The roster the active player is placing: a puzzle's kit, or the Classic army. */
+export function activeKit(state: {
+  mode: Mode;
+  puzzleId: string | null;
+}): Roster {
+  if (state.mode !== "puzzle" || state.puzzleId === null) return MVP_ARMY;
+  return puzzleById(state.puzzleId)?.kit ?? MVP_ARMY;
+}
+
+export function activePuzzle(state: { mode: Mode; puzzleId: string | null }): Puzzle | null {
+  if (state.mode !== "puzzle" || state.puzzleId === null) return null;
+  return puzzleById(state.puzzleId) ?? null;
+}
+
 function defaultFacing(team: Team): Direction {
   return team === "A" ? "N" : "S";
 }
 
+const FRESH = {
+  selectedType: null,
+  selectedFacing: "N" as Direction,
+  selectedIndex: null,
+  result: null,
+};
+
 export const useGame = create<GameState>((set, get) => ({
   phase: "home",
+  mode: "hotseat",
+  botId: null,
+  puzzleId: null,
   activeTeam: "A",
   deployments: { A: emptyDeployment("A"), B: emptyDeployment("B") },
   lastFormation: { A: null, B: null },
-  selectedType: null,
-  selectedFacing: "N",
-  selectedIndex: null,
-  result: null,
+  ...FRESH,
 
-  startMatch: () =>
+  startHotseat: () =>
     set({
       phase: "deploy",
+      mode: "hotseat",
+      botId: null,
+      puzzleId: null,
       activeTeam: "A",
       deployments: { A: emptyDeployment("A"), B: emptyDeployment("B") },
-      selectedType: null,
-      selectedFacing: "N",
-      selectedIndex: null,
-      result: null,
+      lastFormation: { A: null, B: null },
+      ...FRESH,
     }),
 
+  startBot: (botId) => {
+    const bot = botById(botId);
+    if (bot === undefined) return;
+    set({
+      phase: "deploy",
+      mode: "bot",
+      botId,
+      puzzleId: null,
+      activeTeam: "A",
+      // The bot's formation is loaded now but stays hidden until the reveal.
+      deployments: { A: emptyDeployment("A"), B: bot.deployment },
+      lastFormation: { A: null, B: null },
+      ...FRESH,
+    });
+  },
+
+  startPuzzle: (puzzleId) => {
+    const puzzle = puzzleById(puzzleId);
+    if (puzzle === undefined) return;
+    set({
+      phase: "deploy",
+      mode: "puzzle",
+      puzzleId,
+      botId: null,
+      activeTeam: "A",
+      // A puzzle's enemy is VISIBLE the whole time — that is the point of it.
+      deployments: { A: emptyDeployment("A"), B: puzzle.enemy },
+      lastFormation: { A: null, B: null },
+      ...FRESH,
+    });
+  },
+
   /**
-   * Rematch reloads BOTH players' previous formations, pre-placed for editing.
+   * Rematch reloads the previous formations, pre-placed for editing.
    *
-   * This is the single most important interaction in the demo. Rebuilding 19
-   * pieces from scratch kills the "I know exactly what I'd change" impulse
-   * that the whole prototype is trying to test (§D.2).
+   * This is the single most important interaction in the demo. Rebuilding
+   * nineteen pieces from scratch kills the "I know exactly what I'd change"
+   * impulse that the whole prototype exists to test (§D.2).
    */
   rematch: () => {
-    const { lastFormation } = get();
+    const { lastFormation, mode, deployments } = get();
     set({
       phase: "deploy",
       activeTeam: "A",
       deployments: {
         A: lastFormation.A ?? emptyDeployment("A"),
-        B: lastFormation.B ?? emptyDeployment("B"),
+        // Bots and puzzles keep their fixed formation; hotseat reloads Orange's.
+        B: mode === "hotseat" ? (lastFormation.B ?? emptyDeployment("B")) : deployments.B,
       },
-      selectedType: null,
-      selectedFacing: "N",
-      selectedIndex: null,
-      result: null,
+      ...FRESH,
     });
   },
 
@@ -124,37 +183,36 @@ export const useGame = create<GameState>((set, get) => ({
   rotateSelected: () => {
     const { selectedIndex, activeTeam, deployments, selectedFacing } = get();
     if (selectedIndex === null) {
-      const next = FACINGS[(FACINGS.indexOf(selectedFacing) + 1) % 4] ?? "N";
-      set({ selectedFacing: next });
+      set({ selectedFacing: FACINGS[(FACINGS.indexOf(selectedFacing) + 1) % 4] ?? "N" });
       return;
     }
     const deployment = deployments[activeTeam];
     const unit = deployment.units[selectedIndex];
     if (unit === undefined) return;
     const next = FACINGS[(FACINGS.indexOf(unit.facing) + 1) % 4] ?? "N";
-    const units = deployment.units.map((u, i) =>
-      i === selectedIndex ? { ...u, facing: next } : u,
+    const units = deployment.units.map((x, i) =>
+      i === selectedIndex ? { ...x, facing: next } : x,
     );
     set({ deployments: { ...deployments, [activeTeam]: { ...deployment, units } } });
   },
 
   place: (row, col) => {
-    const { selectedType, activeTeam, deployments, selectedFacing } = get();
+    const state = get();
+    const { selectedType, activeTeam, deployments, selectedFacing } = state;
     if (selectedType === null) return;
+    const kit = activeKit(state);
     const deployment = deployments[activeTeam];
-    const left = remaining(deployment).get(selectedType) ?? 0;
-    if (left <= 0) return;
+    if ((remaining(deployment, kit).get(selectedType) ?? 0) <= 0) return;
     if (!canPlace(activeTeam, selectedType, row, col, deployment.units)) return;
 
     const placed: PlacedUnit = {
       type: selectedType,
       row,
       col,
-      // Structures have no facing that matters; keep it canonical.
       facing: UNITS[selectedType].pattern === undefined ? "N" : selectedFacing,
     };
     const units = [...deployment.units, placed];
-    const stillLeft = (remaining({ ...deployment, units }).get(selectedType) ?? 0) > 0;
+    const stillLeft = (remaining({ ...deployment, units }, kit).get(selectedType) ?? 0) > 0;
     set({
       deployments: { ...deployments, [activeTeam]: { ...deployment, units } },
       selectedType: stillLeft ? selectedType : null,
@@ -164,9 +222,11 @@ export const useGame = create<GameState>((set, get) => ({
   removeAt: (index) => {
     const { activeTeam, deployments } = get();
     const deployment = deployments[activeTeam];
-    const units = deployment.units.filter((_, i) => i !== index);
     set({
-      deployments: { ...deployments, [activeTeam]: { ...deployment, units } },
+      deployments: {
+        ...deployments,
+        [activeTeam]: { ...deployment, units: deployment.units.filter((_, i) => i !== index) },
+      },
       selectedIndex: null,
     });
   },
@@ -180,14 +240,16 @@ export const useGame = create<GameState>((set, get) => ({
     });
   },
 
-  /** Fills every unplaced piece into the first legal tile. A playtest convenience. */
+  /** Drops every unplaced piece into the first legal tile. A playtest convenience. */
   autoFill: () => {
-    const { activeTeam, deployments } = get();
+    const state = get();
+    const { activeTeam, deployments } = state;
+    const kit = activeKit(state);
     const deployment = deployments[activeTeam];
     const units: PlacedUnit[] = [...deployment.units];
     const rows = activeTeam === "A" ? [8, 9, 10, 11, 12, 13] : [5, 4, 3, 2, 1, 0];
 
-    for (const [type, count] of remaining(deployment)) {
+    for (const [type, count] of remaining(deployment, kit)) {
       for (let n = 0; n < count; n++) {
         let placed = false;
         for (const row of rows) {
@@ -208,13 +270,13 @@ export const useGame = create<GameState>((set, get) => ({
   /**
    * Ready is irreversible (§B.2).
    *
-   * When the second player commits, the whole battle is simulated immediately
-   * and stored. Playback is then pure replay of the event log — the renderer
-   * never simulates (§H.4).
+   * Once the last player commits, the whole battle is simulated immediately and
+   * stored. Playback is then pure replay of the event log — the renderer never
+   * simulates (§H.4).
    */
   ready: () => {
-    const { activeTeam, deployments } = get();
-    if (activeTeam === "A") {
+    const { activeTeam, deployments, mode } = get();
+    if (mode === "hotseat" && activeTeam === "A") {
       set({ phase: "handoff", activeTeam: "B", selectedType: null, selectedIndex: null });
       return;
     }
@@ -235,6 +297,5 @@ export const useGame = create<GameState>((set, get) => ({
 
   proceedToDeploy: () => set({ phase: "deploy" }),
 
-  /** Playback finished — show the debrief. */
   finish: () => set({ phase: "results" }),
 }));

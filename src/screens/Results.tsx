@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import { Board, type RenderUnit } from "../components/Board.tsx";
+import { botById } from "../game/content/bots.ts";
+import { PUZZLES, evaluatePuzzle } from "../game/content/puzzles.ts";
 import { buildInsights } from "../game/engine/insights.ts";
-import { useGame } from "../store/gameStore.ts";
+import { activePuzzle, useGame } from "../store/gameStore.ts";
 
 const REASON_TEXT: Record<string, string> = {
   hqDestroyed: "HQ destroyed",
@@ -15,6 +17,17 @@ export function ResultsScreen() {
   const result = useGame((s) => s.result);
   const rematch = useGame((s) => s.rematch);
   const backHome = useGame((s) => s.backHome);
+  const mode = useGame((s) => s.mode);
+  const puzzleId = useGame((s) => s.puzzleId);
+  const botId = useGame((s) => s.botId);
+  const startPuzzle = useGame((s) => s.startPuzzle);
+
+  const puzzle = useMemo(() => activePuzzle({ mode, puzzleId }), [mode, puzzleId]);
+  const outcome = useMemo(
+    () => (puzzle === null || result === null ? null : evaluatePuzzle(puzzle, result)),
+    [puzzle, result],
+  );
+  const bot = botId === null ? undefined : botById(botId);
 
   const insights = useMemo(
     () => (result === null ? [] : buildInsights(result.events, result.stats)),
@@ -23,6 +36,12 @@ export function ResultsScreen() {
 
   if (result === null) return null;
   const { stats } = result;
+
+  const puzzleIndex = puzzle === null ? -1 : PUZZLES.findIndex((p) => p.id === puzzle.id);
+  const nextPuzzleId =
+    puzzleIndex >= 0 && puzzleIndex < PUZZLES.length - 1
+      ? (PUZZLES[puzzleIndex + 1]?.id ?? null)
+      : null;
 
   const units: RenderUnit[] = stats.units.map((u) => ({
     key: String(u.id),
@@ -59,6 +78,27 @@ export function ResultsScreen() {
             {REASON_TEXT[result.reason] ?? result.reason} · {result.durationSeconds.toFixed(1)}s
           </div>
         </div>
+
+        {outcome !== null && puzzle !== null && (
+          <div className={`puzzle-verdict ${outcome.solved ? "solved" : "failed"}`}>
+            <div className="stamp">{outcome.solved ? "Solved" : "Not solved"}</div>
+            <ul className="objectives">
+              {outcome.checks.map((c) => (
+                <li key={c.objective.label} className={c.passed ? "pass" : "fail"}>
+                  {c.passed ? "✓" : "✗"} {c.objective.label}
+                </li>
+              ))}
+            </ul>
+            {!outcome.solved && <p className="brief-text">{puzzle.hint}</p>}
+          </div>
+        )}
+
+        {bot !== undefined && (
+          <div className="keymoment">
+            <strong>{bot.name}</strong>
+            {bot.tell}
+          </div>
+        )}
 
         {insights.slice(0, 2).map((insight) => (
           <div className="keymoment" key={insight.label}>
@@ -122,15 +162,21 @@ export function ResultsScreen() {
 
         <div className="row-actions">
           <button type="button" className="primary" onClick={rematch}>
-            Rematch
+            {puzzle === null ? "Rematch" : "Try again"}
           </button>
+          {puzzle !== null && outcome?.solved === true && nextPuzzleId !== null && (
+            <button type="button" onClick={() => startPuzzle(nextPuzzleId)}>
+              Next puzzle
+            </button>
+          )}
           <button type="button" onClick={backHome}>
             Menu
           </button>
         </div>
         <p className="hint">
-          Rematch reloads both formations exactly as they were, ready to edit. Change one thing and
-          run it again.
+          {puzzle === null
+            ? "Rematch reloads both formations exactly as they were, ready to edit. Change one thing and run it again."
+            : "Your placement is reloaded exactly as it was. Move one piece and run it again."}
         </p>
       </div>
     </div>

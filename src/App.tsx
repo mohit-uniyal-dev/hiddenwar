@@ -1,3 +1,5 @@
+import { BOTS } from "./game/content/bots.ts";
+import { PUZZLES } from "./game/content/puzzles.ts";
 import { BattleScreen } from "./screens/Battle.tsx";
 import { DeploymentScreen } from "./screens/Deployment.tsx";
 import { ResultsScreen } from "./screens/Results.tsx";
@@ -18,24 +20,60 @@ export function App() {
 }
 
 function HomeScreen() {
-  const startMatch = useGame((s) => s.startMatch);
+  const startHotseat = useGame((s) => s.startHotseat);
+  const startBot = useGame((s) => s.startBot);
+  const startPuzzle = useGame((s) => s.startPuzzle);
+
   return (
     <>
       <div className="title">
         <h1>Hidden Front</h1>
         <p>Secretly dig in your army — then watch two plans collide</p>
       </div>
-      <div className="panel" style={{ maxWidth: "34rem" }}>
-        <h2>Hotseat</h2>
-        <p style={{ lineHeight: 1.6, fontSize: "0.92rem", margin: "0 0 1rem" }}>
-          Blue deploys first, then hands the device to Orange. Neither side sees the other's
-          formation until both are locked. Units never move once placed — everything is decided by
-          position, facing and firing lanes.
-        </p>
-        <div className="row-actions">
-          <button type="button" className="primary" onClick={startMatch}>
-            Start match
-          </button>
+
+      <div className="menu">
+        <div className="panel">
+          <h2>Puzzles</h2>
+          <p className="menu-note">
+            A visible enemy formation and a small kit. Work out the placement that beats it.
+          </p>
+          {PUZZLES.map((p, i) => (
+            <button type="button" key={p.id} className="army-row" onClick={() => startPuzzle(p.id)}>
+              <span className="chip puzzle-chip">{i + 1}</span>
+              <span className="name">{p.name}</span>
+              <span className="count">{p.teaches}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="panel">
+          <h2>Single player</h2>
+          <p className="menu-note">
+            Deploy against a stored formation. It cannot see yours either.
+          </p>
+          {BOTS.map((b) => (
+            <button type="button" key={b.id} className="army-row" onClick={() => startBot(b.id)}>
+              <span className={`chip diff-${b.difficulty.toLowerCase()}`}>{b.difficulty[0]}</span>
+              <span className="name">
+                {b.name}
+                <em>{b.blurb}</em>
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="panel">
+          <h2>Hotseat</h2>
+          <p className="menu-note">
+            Blue deploys, hands over the device, Orange deploys. Neither side sees the other until
+            both are locked. Units never move once placed — position, facing and firing lanes decide
+            everything.
+          </p>
+          <div className="row-actions">
+            <button type="button" className="primary" onClick={startHotseat}>
+              Start match
+            </button>
+          </div>
         </div>
       </div>
     </>

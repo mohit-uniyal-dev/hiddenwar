@@ -20,7 +20,7 @@ pnpm dev          # http://localhost:5173
 | --- | --- |
 | `pnpm dev` | Vite dev server |
 | `pnpm build` | Typecheck + production bundle into `dist/` |
-| `pnpm test` | Vitest, 60 tests |
+| `pnpm test` | Vitest, 109 tests |
 | `pnpm test:watch` | Vitest in watch mode |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm lint` | Biome |
@@ -30,7 +30,15 @@ pnpm dev          # http://localhost:5173
 
 ## What works today
 
-The full hotseat loop from §F.2 of the roadmap:
+Three modes, all playable:
+
+| Mode | What it is |
+| --- | --- |
+| **Puzzles** | 5 setups with a *visible* enemy and a small kit. A deliberate curriculum: facing → cones → cover → artillery → reach. Doubles as the tutorial. |
+| **Single player** | 3 handcrafted bot formations (Easy/Medium). Their formation stays hidden until the reveal, same as a human's. |
+| **Hotseat** | Two players, one device, secret deployment both ways. |
+
+The full loop from §F.2 of the roadmap:
 
 ```
 Home  →  Blue deploys  →  hand off  →  Orange deploys  →  reveal + 3-2-1
@@ -43,7 +51,9 @@ Home  →  Blue deploys  →  hand off  →  Orange deploys  →  reveal + 3-2-1
 - **Battle report** — per-unit damage, kills and idle time, auto-generated tactical observations, and the two health metrics from §D.2.
 - **Rematch** reloads both formations pre-placed for editing. This is the core loop, not a convenience.
 
-Not built yet: online play of any kind, draft mode, puzzle mode, AI opponents, replay links.
+Every bot formation is validated as a legal Classic army, and **every puzzle is proven solvable by running its reference solution through the real engine** — an unsolvable tutorial is worse than no tutorial.
+
+Not built yet: online play of any kind, draft mode, searching AI, replay links, sound.
 
 ---
 
@@ -105,3 +115,7 @@ The same fixture runs **39s** against a 15–30s target and produces **14 lane o
 **Tuning levers, in preferred order** (§C.5): sandbag HP 60→45, tank cooldown 56→48 ticks, mortar cooldown 80→70. If battles end *too* fast, raise soldier HP 30→35 first — never slow the tanks, the breach cadence is the drama engine.
 
 **One doc correction found by the tests.** §C.4 says a soldier "cannot realistically kill a tank" at ~40s. Precisely: it kills it at tick 790 (39.5s), which is *inside* the 60s cap. The claim is "too slow to matter", not "impossible".
+
+**The HQ back-row exploit, found in playtest and now closed.** Measured reachability of Blue's zone from any legal Orange placement: rows 9–10 are open to all four weapons, rows 11–12 to tanks and the mortar, and rows **13–14 to the mortar alone**. An HQ parked there was touchable by exactly one unit out of nineteen — and because the tiebreak ladder checks HQ HP first, an untouched HQ also won every stalemate automatically. The HQ may no longer sit on your back row; [reachability.test.ts](src/game/__tests__/reachability.test.ts) asserts every legal anchor stays inside tank range, so the sanctuary cannot silently reopen if a zone, gap, or range is ever changed.
+
+**Ranges deliberately left alone.** No man's land costs every weapon two rows of reach, which looks like a bug and is not: infantry fight at the line, tanks reach mid-field, artillery reaches deep, and each unit gets a distinct spatial role. Making distance ignore the gap would also drop the mortar's minimum range below 3 against the enemy front rank, inverting its role. If playtests ever show idle units above 15%, the lever is narrowing no man's land to one row — not a global range buff.

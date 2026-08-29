@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArmyPanel } from "../components/ArmyPanel.tsx";
 import { Board, type RenderUnit, toRenderUnits } from "../components/Board.tsx";
+import { botById } from "../game/content/bots.ts";
 import { arcPreview } from "../game/engine/preview.ts";
 import { canPlace } from "../game/models/deployment.ts";
 import type { Coord, PlacedUnit } from "../game/types.ts";
-import { useGame } from "../store/gameStore.ts";
+import { activeKit, activePuzzle, useGame } from "../store/gameStore.ts";
 
 export function DeploymentScreen() {
+  const mode = useGame((s) => s.mode);
+  const puzzleId = useGame((s) => s.puzzleId);
+  const botId = useGame((s) => s.botId);
   const activeTeam = useGame((s) => s.activeTeam);
   const deployment = useGame((s) => s.deployments[s.activeTeam]);
+  const enemyDeployment = useGame((s) => s.deployments[s.activeTeam === "A" ? "B" : "A"]);
   const selectedType = useGame((s) => s.selectedType);
   const selectedFacing = useGame((s) => s.selectedFacing);
   const selectedIndex = useGame((s) => s.selectedIndex);
@@ -20,11 +25,14 @@ export function DeploymentScreen() {
   const clearAll = useGame((s) => s.clearAll);
   const autoFill = useGame((s) => s.autoFill);
   const ready = useGame((s) => s.ready);
+  const backHome = useGame((s) => s.backHome);
+
+  const kit = useMemo(() => activeKit({ mode, puzzleId }), [mode, puzzleId]);
+  const puzzle = useMemo(() => activePuzzle({ mode, puzzleId }), [mode, puzzleId]);
+  const bot = botId === null ? undefined : botById(botId);
 
   const [hovered, setHovered] = useState<Coord | null>(null);
 
-  // R rotates — before placing (sets the ghost's facing) or after (turns the
-  // selected unit). Facing is the most-used control on this screen.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "r" || e.key === "R") {
@@ -48,22 +56,15 @@ export function DeploymentScreen() {
       ? canPlace(activeTeam, selectedType, hovered.row, hovered.col, deployment.units)
       : true;
 
-  /**
-   * The arc preview. Shown for a selected placed unit, or as a ghost under the
-   * cursor while placing — so you can see the firing lane BEFORE you commit.
-   */
   const preview = useMemo(() => {
-    if (selectedUnit !== null) {
-      return arcPreview(activeTeam, deployment.units, selectedUnit);
-    }
+    if (selectedUnit !== null) return arcPreview(activeTeam, deployment.units, selectedUnit);
     if (selectedType !== null && hovered !== null && hoverLegal) {
-      const ghost: PlacedUnit = {
+      return arcPreview(activeTeam, deployment.units, {
         type: selectedType,
         row: hovered.row,
         col: hovered.col,
         facing: selectedFacing,
-      };
-      return arcPreview(activeTeam, deployment.units, ghost);
+      });
     }
     return { covered: [], blocked: [] };
   }, [
@@ -81,7 +82,14 @@ export function DeploymentScreen() {
     selected: u.index === selectedIndex,
   }));
 
-  // The ghost unit under the cursor.
+  // A puzzle's enemy is visible the whole time — solving it IS reading their
+  // formation (§E.2). A bot's formation stays hidden until the reveal.
+  if (puzzle !== null) {
+    units.push(
+      ...toRenderUnits(enemyDeployment.units, "B").map((u) => ({ ...u, key: `enemy-${u.key}` })),
+    );
+  }
+
   if (selectedType !== null && hovered !== null && hoverLegal) {
     units.push({
       key: "ghost",
@@ -95,6 +103,29 @@ export function DeploymentScreen() {
 
   return (
     <div className="screen">
+      {puzzle !== null && (
+        <div className="panel brief">
+          <h2>{puzzle.name}</h2>
+          <p className="teaches">{puzzle.teaches}</p>
+          <p className="brief-text">{puzzle.brief}</p>
+          <h2>Objectives</h2>
+          <ul className="objectives">
+            {puzzle.objectives.map((o) => (
+              <li key={o.label}>{o.label}</li>
+            ))}
+          </ul>
+          <details>
+            <summary>Hint</summary>
+            <p className="brief-text">{puzzle.hint}</p>
+          </details>
+          <div className="row-actions">
+            <button type="button" onClick={backHome}>
+              Back
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="board-wrap">
         <Board
           units={units}
@@ -115,17 +146,20 @@ export function DeploymentScreen() {
               place(unit.row, unit.col);
               return;
             }
-            if (unit.index !== undefined) selectPlaced(unit.index);
+            if (unit.index !== undefined && unit.team === activeTeam) selectPlaced(unit.index);
           }}
         />
-        <p className="hint" style={{ color: "#cfc4ab", maxWidth: "44ch", textAlign: "center" }}>
-          The hatched strip is no man's land — nothing can be placed there. Solid marks show where a
-          unit can fire; faded marks are shadowed by your own cover.
+        <p className="hint board-note">
+          {bot !== undefined
+            ? `Facing ${bot.name} — their formation stays hidden until the reveal.`
+            : "The hatched strip is no man's land. Solid marks show where a unit can fire; faded marks are shadowed by your own cover."}
         </p>
       </div>
 
       <ArmyPanel
         team={activeTeam}
+        kit={kit}
+        readyLabel={mode === "hotseat" ? "Ready" : "Fight"}
         deployment={deployment}
         selectedType={selectedType}
         selectedUnit={selectedUnit}

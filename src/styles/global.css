@@ -25,8 +25,8 @@
   --ok: #4a7c2f;
   --warn: #a8341f;
 
-  --arc: rgba(45, 90, 150, 0.26);
-  --arc-line: rgba(45, 90, 150, 0.55);
+  --arc: rgba(58, 82, 74, 0.3);
+  --arc-line: rgba(32, 46, 40, 0.75);
   --arc-blocked: rgba(120, 110, 95, 0.22);
 
   --tile: clamp(26px, 4.4vh, 46px);
@@ -245,14 +245,21 @@ button.danger {
   background: rgba(168, 52, 31, 0.22);
 }
 
-/* Grease-pencil arc preview (§A.2) */
+/*
+ * Grease-pencil arc preview (§A.2).
+ *
+ * Deliberately NOT team-coloured: the arc has to read identically over your
+ * own zone tint and the enemy's, and the enemy half is where it matters most.
+ * A chalk fill with a dark ink border reads on both.
+ */
 .tile.arc::after {
   content: "";
   position: absolute;
-  inset: 3px;
+  inset: 2px;
   background: var(--arc);
-  border: 1px solid var(--arc-line);
+  border: 1.5px solid var(--arc-line);
   border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(255, 248, 225, 0.35);
   pointer-events: none;
 }
 
@@ -823,4 +830,139 @@ table.report-table tr.dead td {
   color: #f6e27a;
   font-weight: 700;
   letter-spacing: 0.16em;
+}
+
+/* ------------------------------------------------------------- home menu */
+
+.menu {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  max-width: 1100px;
+  width: 100%;
+  align-items: start;
+}
+
+.menu-note {
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin: 0 0 0.75rem;
+}
+
+.army-row .name em {
+  display: block;
+  font-style: normal;
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  line-height: 1.35;
+  margin-top: 0.1rem;
+}
+
+.chip.puzzle-chip {
+  background: var(--ink-soft);
+  color: var(--paper);
+}
+
+.chip.diff-easy {
+  background: var(--ok);
+  color: #f3efe2;
+}
+
+.chip.diff-medium {
+  background: #b4791f;
+  color: #fdf3e2;
+}
+
+/* --------------------------------------------------------- puzzle briefs */
+
+.panel.brief {
+  min-width: 250px;
+  max-width: 290px;
+}
+
+.teaches {
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: -0.4rem 0 0.6rem;
+}
+
+.brief-text {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  margin: 0 0 0.8rem;
+}
+
+ul.objectives {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.8rem;
+  font-size: 0.85rem;
+}
+
+ul.objectives li {
+  padding: 0.2rem 0;
+  border-bottom: 1px solid rgba(168, 152, 119, 0.35);
+}
+
+ul.objectives li.pass {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+ul.objectives li.fail {
+  color: var(--warn);
+}
+
+.panel.brief details summary {
+  cursor: pointer;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 0.5rem;
+}
+
+.board-note {
+  color: #cfc4ab;
+  max-width: 46ch;
+  text-align: center;
+}
+
+/* ------------------------------------------------------- puzzle verdict */
+
+.puzzle-verdict {
+  border: 1px solid var(--paper-line);
+  border-left-width: 3px;
+  padding: 0.7rem 0.8rem;
+  margin-bottom: 0.9rem;
+  border-radius: 2px;
+}
+
+.puzzle-verdict.solved {
+  border-left-color: var(--ok);
+  background: rgba(74, 124, 47, 0.12);
+}
+
+.puzzle-verdict.failed {
+  border-left-color: var(--warn);
+  background: rgba(168, 52, 31, 0.09);
+}
+
+.puzzle-verdict .stamp {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 0.45rem;
+}
+
+.puzzle-verdict.solved .stamp {
+  color: var(--ok);
+}
+
+.puzzle-verdict.failed .stamp {
+  color: var(--warn);
 }
