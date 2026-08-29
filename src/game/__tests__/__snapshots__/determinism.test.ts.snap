@@ -1,0 +1,10 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`determinism > matches the recorded golden log 1`] = `
+{
+  "endedAtTick": 780,
+  "hash": "32d30600e9428198:23901",
+  "reason": "mutualHqDestruction",
+  "winner": "draw",
+}
+`;
