@@ -139,12 +139,20 @@ export function BattleScreen() {
               only signal was a button label quietly changing. */}
           {finished && (
             <div className="overlay end">
-              <div className={`who ${winnerClass}`}>{winnerText}</div>
-              <div className="why">{reasonText}</div>
-              <div className="why">battle lasted {result.durationSeconds.toFixed(1)}s</div>
+              {/* Text sits on its own panel rather than straight on the board,
+                  so it never has to compete with the pieces underneath. */}
+              <div className="card">
+                <div className={`who ${winnerClass}`}>{winnerText}</div>
+                <div className="why">{reasonText}</div>
+                <div className="why">battle lasted {result.durationSeconds.toFixed(1)}s</div>
+              </div>
             </div>
           )}
-          {!finished && paused && countdown < 0 && <div className="overlay">Paused</div>}
+          {!finished && paused && countdown < 0 && (
+            <div className="overlay">
+              <div className="card">Paused</div>
+            </div>
+          )}
         </Board>
       </div>
 

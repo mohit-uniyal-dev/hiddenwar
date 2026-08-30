@@ -1,4 +1,5 @@
-import { DIFFICULTIES } from "./game/content/formations.ts";
+import { useState } from "react";
+import { DIFFICULTIES, type Difficulty } from "./game/content/formations.ts";
 import { PUZZLES } from "./game/content/puzzles.ts";
 import { BattleScreen } from "./screens/Battle.tsx";
 import { DeploymentScreen } from "./screens/Deployment.tsx";
@@ -26,6 +27,8 @@ export function App() {
 }
 
 function HomeScreen() {
+  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
+  const selected = DIFFICULTIES.find((d) => d.id === difficulty);
   const startHotseat = useGame((s) => s.startHotseat);
   const startAi = useGame((s) => s.startAi);
   const startPuzzle = useGame((s) => s.startPuzzle);
@@ -37,7 +40,7 @@ function HomeScreen() {
         <p>Secretly dig in your army — then watch two plans collide</p>
       </div>
 
-      <div className="menu">
+      <div className={`menu ${SHOW_PUZZLES ? "" : "menu-single"}`}>
         {SHOW_PUZZLES && (
           <div className="panel">
             <h2>Puzzles</h2>
@@ -60,34 +63,44 @@ function HomeScreen() {
         )}
 
         <div className="panel">
-          <h2>vs. AI</h2>
+          <h2>New match</h2>
           <p className="menu-note">
-            The opposing army is generated fresh each match — a different legal formation every
-            time, not a stored one. The tiers are ordered by measured win rate, not by feel.
+            Units never move once placed — position, facing and firing lanes decide everything. Both
+            HQs are fixed and public, and each side's column is drawn fresh every match.
           </p>
-          {DIFFICULTIES.map((d) => (
-            <button type="button" key={d.id} className="army-row" onClick={() => startAi(d.id)}>
-              <span className={`chip diff-${d.id}`}>{d.label[0]}</span>
-              <span className="name">
-                {d.label}
-                <em>{d.blurb}</em>
-              </span>
-            </button>
-          ))}
-        </div>
 
-        <div className="panel">
-          <h2>Hotseat</h2>
-          <p className="menu-note">
-            Blue deploys, hands over the device, Orange deploys. Neither side sees the other until
-            both are locked. Units never move once placed — position, facing and firing lanes decide
-            everything. Both HQs are fixed and public, and their column is drawn fresh each match.
-          </p>
           <div className="row-actions">
             <button type="button" className="primary" onClick={startHotseat}>
               Start match
             </button>
           </div>
+          <p className="hint">
+            Hotseat: Blue deploys, hands over the device, Orange deploys. Neither side sees the
+            other until both are locked.
+          </p>
+
+          <div className="or-rule">
+            <span>or</span>
+          </div>
+
+          <div className="controls segmented">
+            {DIFFICULTIES.map((d) => (
+              <button
+                type="button"
+                key={d.id}
+                className={difficulty === d.id ? "on" : ""}
+                onClick={() => setDifficulty(d.id)}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+          <div className="row-actions">
+            <button type="button" onClick={() => startAi(difficulty)}>
+              vs. AI
+            </button>
+          </div>
+          <p className="hint">{selected?.blurb} Their army is generated fresh each match.</p>
         </div>
       </div>
     </>

@@ -244,16 +244,18 @@ button.danger {
   border-radius: 5px;
   outline: 1px solid rgba(223, 204, 163, 0.46);
   outline-offset: -3px;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5), 0 3px 0 #30291d, inset 0 0 60px
-    rgba(120, 100, 60, 0.25);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5), 0 3px 0 #30291d, inset 0 0 70px
+    rgba(120, 100, 60, 0.12);
   position: relative;
   isolation: isolate;
   overflow: hidden;
 }
 
 .tile {
-  border-right: 1px solid rgba(118, 101, 72, 0.36);
-  border-bottom: 1px solid rgba(118, 101, 72, 0.36);
+  /* Faint on purpose: the grid is a reference, not a subject. Anything heavier
+     competes with the pieces for attention. */
+  border-right: 1px solid rgba(118, 101, 72, 0.16);
+  border-bottom: 1px solid rgba(118, 101, 72, 0.16);
   position: relative;
   display: flex;
   align-items: center;
@@ -288,14 +290,14 @@ button.danger {
 }
 
 .tile.nml {
-  background: linear-gradient(rgba(72, 64, 47, 0.08), rgba(72, 64, 47, 0.08)),
+  background: linear-gradient(rgba(72, 64, 47, 0.05), rgba(72, 64, 47, 0.05)),
     repeating-linear-gradient(
       45deg,
-      var(--nml),
-      var(--nml) 7px,
-      var(--paper-dark) 7px,
-      var(--paper-dark) 14px
-    );
+      rgba(168, 150, 112, 0.3),
+      rgba(168, 150, 112, 0.3) 7px,
+      transparent 7px,
+      transparent 14px
+    ), var(--paper-dark);
 }
 
 .tile.placeable {
@@ -1109,20 +1111,32 @@ table.report-table tr.dead td {
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
   pointer-events: none;
-  background: rgba(28, 24, 16, 0.42);
-  backdrop-filter: blur(1.5px);
+  background: rgba(28, 24, 16, 0.5);
+  backdrop-filter: blur(2px);
+  animation: overlay-in 260ms ease-out;
+}
+
+/* The result rides on its own panel instead of directly on the board, so the
+   lettering never has to fight the pieces underneath it. */
+.overlay .card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 1rem 2.4rem 1.1rem;
+  background: rgba(22, 19, 13, 0.94);
+  border: 1px solid rgba(255, 246, 221, 0.22);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 44px rgba(0, 0, 0, 0.55);
   color: #fff6dd;
-  font-size: 1.6rem;
-  letter-spacing: 0.22em;
+  font-size: 1.5rem;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   font-weight: 700;
-  text-shadow: 0 3px 14px rgba(0, 0, 0, 0.8);
-  animation: overlay-in 260ms ease-out;
+  text-align: center;
 }
 
 @keyframes overlay-in {
@@ -1378,9 +1392,56 @@ ul.objectives li.fail {
   font-weight: 600;
 }
 
-/* Two visible modes: keep the pair centred rather than stretched wide. */
 .menu {
   max-width: 60rem;
+}
+
+/* Only one panel showing — do not let it stretch across the page. */
+.menu.menu-single {
+  max-width: 34rem;
+}
+
+.or-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.9rem 0 0.7rem;
+  color: var(--ink-faint);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.or-rule::before,
+.or-rule::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--paper-line);
+}
+
+.controls.segmented {
+  justify-content: stretch;
+  gap: 0;
+  margin-bottom: 0.5rem;
+}
+
+.controls.segmented button {
+  flex: 1;
+  border-radius: 0;
+  font-size: 0.72rem;
+}
+
+.controls.segmented button:first-child {
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+
+.controls.segmented button:last-child {
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.controls.segmented button + button {
+  border-left: none;
 }
 
 @media (max-width: 960px) {
