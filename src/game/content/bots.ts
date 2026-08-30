@@ -58,7 +58,7 @@ export const BOTS: readonly BotOpponent[] = [
         u("sandbag", 1, 9),
         u("sandbag", 1, 10),
         u("sandbag", 1, 11),
-        u("hq", 1, 5),
+        u("hq", 0, 5),
       ],
     },
   },

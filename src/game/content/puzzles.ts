@@ -13,6 +13,7 @@
  * then the HQ, then artillery reach.
  */
 
+import { HQ_ANCHOR } from "../config/gameConfig.ts";
 import type { Roster } from "../config/units.ts";
 import type { BattleResult } from "../engine/simulate.ts";
 import type { Deployment, Direction, PlacedUnit, UnitTypeId } from "../types.ts";
@@ -43,6 +44,8 @@ export interface Puzzle {
   readonly brief: string;
   readonly hint: string;
   readonly kit: Roster;
+  /** Pieces the scenario starts you with, already on the board and immovable. */
+  readonly fixed?: readonly PlacedUnit[];
   readonly enemy: Deployment;
   readonly objectives: readonly Objective[];
   /**
@@ -125,19 +128,23 @@ export const PUZZLES: readonly Puzzle[] = [
     brief:
       "An enemy mortar is ranged in on your half, and it fires over cover — sandbags will not save your HQ. It is also the flimsiest thing on the board at 35 HP.",
     hint: "Living units never block each other, so two rifles stacked in the same column both reach it. Kill it before its first shot at 2 seconds.",
-    kit: [
-      { type: "soldier", count: 2 },
-      { type: "hq", count: 1 },
-    ],
+    kit: [{ type: "soldier", count: 2 }],
+    // Your HQ stands where it always stands — this puzzle is about defending
+    // a known position, not hiding one.
+    fixed: [u("hq", HQ_ANCHOR.A.row, HQ_ANCHOR.A.col)],
     enemy: {
       team: "B",
       units: [u("mortar", 3, 5, "S"), SENTRY],
     },
     objectives: [
+      // "Win" has to be first. Without it, deploying nothing at all passes:
+      // an army with no combat units loses instantly by army destruction
+      // (§B.3), which leaves the HQ untouched and nothing lost.
+      { kind: "win", label: "Win the battle" },
       { kind: "hqSurvives", label: "Your HQ survives" },
       { kind: "loseAtMost", label: "Lose no units", value: 0 },
     ],
-    referenceSolution: [u("soldier", 5, 5, "N"), u("soldier", 6, 5, "N"), u("hq", 7, 9)],
+    referenceSolution: [u("soldier", 5, 5, "N"), u("soldier", 6, 5, "N")],
   },
 
   {

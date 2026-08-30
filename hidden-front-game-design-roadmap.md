@@ -194,14 +194,48 @@ substantially resolved itself once infantry could reach the enemy at all.
 One unit per tile. Hard rule. No stacking, ever.
 The HQ occupies 4 tiles (2x2) and must be fully inside your zone.
 Placement is legal anywhere in your own 4 rows, including the front row.
+The HQ is placed automatically and cannot be moved (see below).
 Ready is irreversible.
 ```
 
-### The HQ needs no placement rule
+### The HQ is placed automatically, and both are public
 
-A 2x2 HQ may be anchored anywhere its footprint fits inside your zone.
+**Neither player positions their HQ.** It stands at a published anchor —
+centre-rear, mirrored — and both sides can see both from the moment deployment
+begins.
 
-On the 12x14 board this was not safe. The back two rows were reachable **only**
+```text
+Player B HQ   rows 1-2, cols 6-7   (displayed)
+Player A HQ   rows 8-9, cols 6-7
+```
+
+**Why.** Guessing *where* the HQ is was never the interesting hidden
+information; guessing the enemy's **lanes and facings** is. Publishing both
+objectives turns every match into a concrete problem — attack this point,
+defend that one — which makes a sandbag wall a readable decision instead of a
+hedge against an unknown, and gives the attacker something to actually plan
+against. It also removes a swing that was never fun: one player hiding their HQ
+well and the other not.
+
+The hidden information that matters is untouched. Everything except the two HQs
+stays secret until the reveal.
+
+Consequences:
+
+- The placeable army is **18 units**, not 19 (§C.2 minus the HQ).
+- Clearing your formation leaves the HQ standing; it cannot be removed or built
+  over.
+- Puzzles may pre-place other pieces too, via a scenario's `fixed` list.
+
+> **Watch item (§41).** A single fixed anchor means the same objective geometry
+> every match, which raises the odds of a solved formation. The natural answer
+> if that happens is a seeded, mirrored anchor drawn per match and held stable
+> across rematches — map variety rather than dice, exactly as §41 prescribes.
+
+### Why no placement rule is needed
+
+When players *did* position their own HQ, the 12x14 board made this unsafe.
+The back two rows were reachable **only**
 by the enemy mortar — one weapon type out of four, one unit out of nineteen,
 with 35 HP — so an HQ parked there was effectively invulnerable once that mortar
 died. Worse, the tiebreak ladder checks HQ HP first (§B.3), so an untouched HQ

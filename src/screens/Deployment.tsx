@@ -83,12 +83,17 @@ export function DeploymentScreen() {
   }));
 
   // A puzzle's enemy is visible the whole time — solving it IS reading their
-  // formation (§E.2). A bot's formation stays hidden until the reveal.
-  if (puzzle !== null) {
-    units.push(
-      ...toRenderUnits(enemyDeployment.units, "B").map((u) => ({ ...u, key: `enemy-${u.key}` })),
-    );
-  }
+  // formation (§E.2). Outside puzzles only their HQ is public: it is placed
+  // automatically at a published anchor, so both sides plan around a known
+  // objective while lanes and facings stay secret.
+  const enemyTeam = activeTeam === "A" ? "B" : "A";
+  const visibleEnemy =
+    puzzle !== null
+      ? enemyDeployment.units
+      : enemyDeployment.units.filter((unit) => unit.type === "hq");
+  units.push(
+    ...toRenderUnits(visibleEnemy, enemyTeam).map((u) => ({ ...u, key: `enemy-${u.key}` })),
+  );
 
   if (selectedType !== null && hovered !== null && hoverLegal) {
     units.push({
@@ -140,20 +145,26 @@ export function DeploymentScreen() {
           onTileClick={(row, col) => {
             const existing = deployment.units.findIndex((u) => u.row === row && u.col === col);
             if (selectedType !== null) place(row, col);
-            else if (existing >= 0) selectPlaced(existing);
+            else if (existing >= 0 && deployment.units[existing]?.type !== "hq") {
+              selectPlaced(existing);
+            }
           }}
           onUnitClick={(unit) => {
             if (selectedType !== null) {
               place(unit.row, unit.col);
               return;
             }
+            // The HQ is automatic; there is nothing to adjust on it.
+            if (unit.type === "hq") return;
             if (unit.index !== undefined && unit.team === activeTeam) selectPlaced(unit.index);
           }}
         />
         <p className="hint board-note">
-          {bot !== undefined
-            ? `Facing ${bot.name} — their formation stays hidden until the reveal.`
-            : "The hatched strip is no man's land. Solid marks show where a unit can fire; faded marks are shadowed by your own cover."}
+          {puzzle !== null
+            ? "The enemy formation is fully visible. Work out the placement that beats it."
+            : `Both HQs are fixed and public — ${
+                bot === undefined ? "your opponent's" : `${bot.name}'s`
+              } units stay hidden until the reveal. You know what to attack and what to defend.`}
         </p>
       </div>
 

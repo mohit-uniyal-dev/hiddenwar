@@ -6,6 +6,7 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
+import { HQ_ANCHOR } from "../game/config/gameConfig.ts";
 import { evaluatePuzzle, puzzleById } from "../game/content/puzzles.ts";
 import { arcPreview } from "../game/engine/preview.ts";
 import { simulateBattle } from "../game/engine/simulate.ts";
@@ -20,10 +21,44 @@ describe("hotseat flow", () => {
     store().startHotseat();
   });
 
-  it("starts on the deployment screen as Blue", () => {
+  it("starts on the deployment screen as Blue, HQ already standing", () => {
     expect(store().phase).toBe("deploy");
     expect(store().activeTeam).toBe("A");
-    expect(store().deployments.A.units).toHaveLength(0);
+    // The HQ is placed automatically at a published anchor — the player never
+    // positions it, and both sides can see both.
+    expect(store().deployments.A.units).toEqual([
+      { type: "hq", row: HQ_ANCHOR.A.row, col: HQ_ANCHOR.A.col, facing: "N" },
+    ]);
+    expect(store().deployments.B.units).toEqual([
+      { type: "hq", row: HQ_ANCHOR.B.row, col: HQ_ANCHOR.B.col, facing: "N" },
+    ]);
+  });
+
+  it("does not hand the player an HQ to place", () => {
+    const kit = activeKit(store());
+    expect(kit.some((entry) => entry.type === "hq")).toBe(false);
+    // ...and the pre-placed HQ must not count against the allowance.
+    expect(isComplete(store().deployments.A, kit)).toBe(false);
+    store().autoFill();
+    expect(isComplete(store().deployments.A, kit)).toBe(true);
+  });
+
+  it("refuses to remove or overwrite the HQ", () => {
+    const before = store().deployments.A.units;
+    store().removeAt(0);
+    expect(store().deployments.A.units).toEqual(before);
+
+    store().selectType("soldier");
+    store().place(HQ_ANCHOR.A.row, HQ_ANCHOR.A.col);
+    expect(store().deployments.A.units).toEqual(before);
+  });
+
+  it("clearing keeps the HQ and wipes everything else", () => {
+    store().autoFill();
+    expect(store().deployments.A.units.length).toBeGreaterThan(1);
+    store().clearAll();
+    expect(store().deployments.A.units).toHaveLength(1);
+    expect(store().deployments.A.units[0]?.type).toBe("hq");
   });
 
   it("auto-fill produces a legal, complete army for both teams", () => {
@@ -86,14 +121,15 @@ describe("hotseat flow", () => {
     store().place(4, 3);
     // The enemy half is not yours to fill.
     store().place(2, 3);
-    expect(store().deployments.A.units).toHaveLength(0);
+    // Only the automatic HQ is on the board.
+    expect(store().deployments.A.units).toHaveLength(1);
 
     store().place(6, 3);
-    expect(store().deployments.A.units).toHaveLength(1);
+    expect(store().deployments.A.units).toHaveLength(2);
 
     // One unit per tile, hard rule.
     store().place(6, 3);
-    expect(store().deployments.A.units).toHaveLength(1);
+    expect(store().deployments.A.units).toHaveLength(2);
   });
 
   it("never exceeds the fixed army allowance", () => {
@@ -106,10 +142,11 @@ describe("hotseat flow", () => {
   it("rotates a placed unit through all four facings", () => {
     store().selectType("soldier");
     store().place(6, 3);
-    store().selectPlaced(0);
+    const index = store().deployments.A.units.findIndex((u) => u.type === "soldier");
+    store().selectPlaced(index);
     const seen = new Set<string>();
     for (let i = 0; i < 4; i++) {
-      seen.add(store().deployments.A.units[0]?.facing ?? "");
+      seen.add(store().deployments.A.units[index]?.facing ?? "");
       store().rotateSelected();
     }
     expect(seen).toEqual(new Set(["N", "E", "S", "W"]));
@@ -216,14 +253,14 @@ describe("puzzle mode", () => {
     store().selectType("mg");
     store().place(6, 5);
     store().place(7, 2);
-    expect(store().deployments.A.units).toHaveLength(1);
+    expect(store().deployments.A.units.filter((u) => u.type === "mg")).toHaveLength(1);
     expect(isComplete(store().deployments.A, activeKit(store()))).toBe(true);
   });
 
   it("refuses units that are not in the kit", () => {
     store().selectType("tank");
     store().place(6, 5);
-    expect(store().deployments.A.units).toHaveLength(0);
+    expect(store().deployments.A.units.filter((u) => u.type === "tank")).toHaveLength(0);
   });
 
   it("is solved by the reference solution and unsolved by a bad one", () => {
@@ -231,7 +268,7 @@ describe("puzzle mode", () => {
     if (puzzle === undefined) throw new Error("missing puzzle");
 
     const good = simulateBattle({
-      playerA: { team: "A", units: puzzle.referenceSolution },
+      playerA: { team: "A", units: [...(puzzle.fixed ?? []), ...puzzle.referenceSolution] },
       playerB: puzzle.enemy,
       seed: 1,
     });

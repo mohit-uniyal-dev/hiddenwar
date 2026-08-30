@@ -142,9 +142,11 @@ export function ArmyPanel({
             <button type="button" onClick={onRotate}>
               Rotate (R)
             </button>
-            <button type="button" className="danger" onClick={onRemove}>
-              Remove
-            </button>
+            {selectedUnit.type !== "hq" && (
+              <button type="button" className="danger" onClick={onRemove}>
+                Remove
+              </button>
+            )}
           </div>
         </div>
       )}

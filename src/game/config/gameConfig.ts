@@ -42,6 +42,23 @@ export const BOARD = {
   teamARows: [5, 8] as const,
 } as const;
 
+/**
+ * Where each side's HQ stands. Fixed, automatic, and visible to both players.
+ *
+ * Guessing the HQ's location was never the interesting hidden information —
+ * guessing the enemy's LANES and FACINGS is. Publishing both objectives turns
+ * every match into "attack this point, defend that one", which makes a sandbag
+ * wall a readable decision instead of a hedge against an unknown, and gives the
+ * attacker a concrete problem to solve.
+ *
+ * Centre-rear on both sides, mirrored across the midline. Both are inside enemy
+ * tank range from the front rank (asserted in reachability.test.ts).
+ */
+export const HQ_ANCHOR = {
+  A: { row: 7, col: 5 },
+  B: { row: 0, col: 5 },
+} as const;
+
 export const RULES = {
   /** Hard cap: 1,200 ticks = 60 seconds (§B.3). */
   maxTicks: 1200,

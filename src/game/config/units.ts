@@ -131,6 +131,12 @@ export const MVP_ARMY: Roster = [
   { type: "hq", count: 1 },
 ];
 
+/**
+ * What a player actually places. The HQ is excluded because it is positioned
+ * automatically at a published location — see HQ_ANCHOR in gameConfig.
+ */
+export const PLACEABLE_ARMY: Roster = MVP_ARMY.filter((entry) => entry.type !== "hq");
+
 /** A unit can fight if it has non-zero damage (§B.3). Sandbags and HQs cannot. */
 export function isCombatCapable(type: UnitTypeId): boolean {
   const damage = UNITS[type].damage;

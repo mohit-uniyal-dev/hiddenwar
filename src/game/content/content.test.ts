@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { BOARD } from "../config/gameConfig.ts";
+import { BOARD, HQ_ANCHOR } from "../config/gameConfig.ts";
 import { UNITS } from "../config/units.ts";
 import { simulateBattle } from "../engine/simulate.ts";
 import { validateDeployment } from "../models/deployment.ts";
@@ -19,6 +19,13 @@ describe("bot formations", () => {
   it("ships three of them", () => {
     expect(BOTS).toHaveLength(3);
     expect(new Set(BOTS.map((b) => b.id)).size).toBe(3);
+  });
+
+  it.each(BOTS)("$name puts its HQ on the published anchor", (bot) => {
+    // The HQ position is public and identical for both sides, so a bot that
+    // parked its own somewhere else would be playing a different game.
+    const hq = bot.deployment.units.find((unit) => unit.type === "hq");
+    expect(hq).toEqual({ type: "hq", row: HQ_ANCHOR.B.row, col: HQ_ANCHOR.B.col, facing: "S" });
   });
 
   it.each(BOTS)("$name is a legal Classic army", (bot) => {
@@ -62,14 +69,17 @@ describe("puzzles", () => {
   });
 
   it.each(PUZZLES)("$name — the reference solution is a legal placement", (puzzle) => {
-    const deployment: Deployment = { team: "A", units: puzzle.referenceSolution };
+    const deployment: Deployment = {
+      team: "A",
+      units: [...(puzzle.fixed ?? []), ...puzzle.referenceSolution],
+    };
     const result = validateDeployment(deployment, puzzle.kit);
     expect(result.errors).toEqual([]);
   });
 
   it.each(PUZZLES)("$name — IS SOLVABLE by its reference solution", (puzzle) => {
     const result = simulateBattle({
-      playerA: { team: "A", units: puzzle.referenceSolution },
+      playerA: { team: "A", units: [...(puzzle.fixed ?? []), ...puzzle.referenceSolution] },
       playerB: puzzle.enemy,
       seed: 1,
     });
@@ -81,7 +91,7 @@ describe("puzzles", () => {
 
   it.each(PUZZLES)("$name — resolves quickly enough to feel like a puzzle", (puzzle) => {
     const result = simulateBattle({
-      playerA: { team: "A", units: puzzle.referenceSolution },
+      playerA: { team: "A", units: [...(puzzle.fixed ?? []), ...puzzle.referenceSolution] },
       playerB: puzzle.enemy,
       seed: 1,
     });
@@ -91,7 +101,7 @@ describe("puzzles", () => {
   it("an empty deployment solves none of them", () => {
     for (const puzzle of PUZZLES) {
       const result = simulateBattle({
-        playerA: { team: "A", units: [] },
+        playerA: { team: "A", units: [...(puzzle.fixed ?? [])] },
         playerB: puzzle.enemy,
         seed: 1,
       });

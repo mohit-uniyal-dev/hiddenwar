@@ -5,7 +5,8 @@
  */
 
 import { create } from "zustand";
-import { MVP_ARMY, type Roster, UNITS } from "../game/config/units.ts";
+import { HQ_ANCHOR } from "../game/config/gameConfig.ts";
+import { MVP_ARMY, PLACEABLE_ARMY, type Roster, UNITS } from "../game/config/units.ts";
 import { botById } from "../game/content/bots.ts";
 import { type Puzzle, puzzleById } from "../game/content/puzzles.ts";
 import { type BattleResult, simulateBattle } from "../game/engine/simulate.ts";
@@ -58,9 +59,18 @@ const FACINGS: Direction[] = ["N", "E", "S", "W"];
 function remaining(deployment: Deployment, kit: Roster): Map<UnitTypeId, number> {
   const left = expectedCounts(kit);
   for (const unit of deployment.units) {
+    // Units outside this kit are pre-placed and fixed — the automatic HQ, or a
+    // puzzle's starting pieces. They must not count against the allowance.
+    if (!left.has(unit.type)) continue;
     left.set(unit.type, (left.get(unit.type) ?? 0) - 1);
   }
   return left;
+}
+
+/** A deployment seeded with the automatic HQ, ready for the player to build on. */
+function withHq(team: Team): Deployment {
+  const anchor = HQ_ANCHOR[team];
+  return { team, units: [{ type: "hq", row: anchor.row, col: anchor.col, facing: "N" }] };
 }
 
 export function remainingFor(deployment: Deployment, kit: Roster = MVP_ARMY) {
@@ -79,8 +89,8 @@ export function activeKit(state: {
   mode: Mode;
   puzzleId: string | null;
 }): Roster {
-  if (state.mode !== "puzzle" || state.puzzleId === null) return MVP_ARMY;
-  return puzzleById(state.puzzleId)?.kit ?? MVP_ARMY;
+  if (state.mode !== "puzzle" || state.puzzleId === null) return PLACEABLE_ARMY;
+  return puzzleById(state.puzzleId)?.kit ?? PLACEABLE_ARMY;
 }
 
 export function activePuzzle(state: { mode: Mode; puzzleId: string | null }): Puzzle | null {
@@ -116,7 +126,7 @@ export const useGame = create<GameState>((set, get) => ({
       botId: null,
       puzzleId: null,
       activeTeam: "A",
-      deployments: { A: emptyDeployment("A"), B: emptyDeployment("B") },
+      deployments: { A: withHq("A"), B: withHq("B") },
       lastFormation: { A: null, B: null },
       ...FRESH,
     }),
@@ -130,8 +140,9 @@ export const useGame = create<GameState>((set, get) => ({
       botId,
       puzzleId: null,
       activeTeam: "A",
-      // The bot's formation is loaded now but stays hidden until the reveal.
-      deployments: { A: emptyDeployment("A"), B: bot.deployment },
+      // The bot's formation is loaded now but stays hidden until the reveal —
+      // except its HQ, which is public and stands at the published anchor.
+      deployments: { A: withHq("A"), B: bot.deployment },
       lastFormation: { A: null, B: null },
       ...FRESH,
     });
@@ -147,7 +158,8 @@ export const useGame = create<GameState>((set, get) => ({
       botId: null,
       activeTeam: "A",
       // A puzzle's enemy is VISIBLE the whole time — that is the point of it.
-      deployments: { A: emptyDeployment("A"), B: puzzle.enemy },
+      // `fixed` holds any pieces the scenario starts you with.
+      deployments: { A: { team: "A", units: [...(puzzle.fixed ?? [])] }, B: puzzle.enemy },
       lastFormation: { A: null, B: null },
       ...FRESH,
     });
@@ -166,9 +178,9 @@ export const useGame = create<GameState>((set, get) => ({
       phase: "deploy",
       activeTeam: "A",
       deployments: {
-        A: lastFormation.A ?? emptyDeployment("A"),
+        A: lastFormation.A ?? withHq("A"),
         // Bots and puzzles keep their fixed formation; hotseat reloads Orange's.
-        B: mode === "hotseat" ? (lastFormation.B ?? emptyDeployment("B")) : deployments.B,
+        B: mode === "hotseat" ? (lastFormation.B ?? withHq("B")) : deployments.B,
       },
       ...FRESH,
     });
@@ -222,6 +234,8 @@ export const useGame = create<GameState>((set, get) => ({
   removeAt: (index) => {
     const { activeTeam, deployments } = get();
     const deployment = deployments[activeTeam];
+    // The HQ is placed automatically and cannot be picked up.
+    if (deployment.units[index]?.type === "hq") return;
     set({
       deployments: {
         ...deployments,
@@ -233,8 +247,13 @@ export const useGame = create<GameState>((set, get) => ({
 
   clearAll: () => {
     const { activeTeam, deployments } = get();
+    const deployment = deployments[activeTeam];
     set({
-      deployments: { ...deployments, [activeTeam]: emptyDeployment(activeTeam) },
+      deployments: {
+        ...deployments,
+        // Clearing wipes what you placed; the fixed pieces stay put.
+        [activeTeam]: { ...deployment, units: deployment.units.filter((u) => u.type === "hq") },
+      },
       selectedIndex: null,
       selectedType: null,
     });
