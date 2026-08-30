@@ -47,7 +47,7 @@ export const BOTS: readonly BotOpponent[] = [
         u("mg", 3, 3),
         u("mg", 3, 9),
         u("tank", 2, 4),
-        u("tank", 2, 7),
+        u("mg", 2, 7),
         u("mortar", 2, 3),
         // Sandbags out on the wings, shielding nothing that matters.
         u("sandbag", 1, 0),
@@ -83,7 +83,7 @@ export const BOTS: readonly BotOpponent[] = [
         // Columns 0 and 11 are empty top to bottom, so neither tank is ever
         // blocked by its own side (§B.4).
         u("tank", 2, 0),
-        u("tank", 2, 11),
+        u("mg", 2, 11),
         u("mortar", 1, 2),
         u("sandbag", 2, 4),
         u("sandbag", 2, 5),
@@ -115,7 +115,7 @@ export const BOTS: readonly BotOpponent[] = [
         u("mg", 2, 1),
         u("mg", 2, 10),
         u("tank", 3, 0),
-        u("tank", 3, 11),
+        u("mg", 3, 11),
         u("mortar", 0, 2),
         // A full box: four across the front, one down each flank.
         u("sandbag", 2, 4),

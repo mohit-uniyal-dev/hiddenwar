@@ -30,22 +30,32 @@ describe("hotseat flow", () => {
     expect(store().deployments.B.units[0]?.type).toBe("hq");
   });
 
-  it("draws a MIRRORED HQ position, so neither side gets the easier problem", () => {
+  it("draws the two HQ columns INDEPENDENTLY, so attack and defence differ", () => {
     const { hqAnchors } = store();
-    expect(hqAnchors.A.col).toBe(hqAnchors.B.col);
-    // Rear rank of each zone, mirrored across the midline.
+    // Rear rank of each zone.
     expect(hqAnchors.B.row).toBe(BOARD.teamBRows[0]);
     expect(hqAnchors.A.row).toBe(BOARD.teamARows[1] - 1);
     expect(store().deployments.A.units[0]).toMatchObject(hqAnchors.A);
     expect(store().deployments.B.units[0]).toMatchObject(hqAnchors.B);
   });
 
-  it("keeps the HQ inside the board for every possible draw", () => {
+  it("does not lock the columns together", () => {
+    // Mirrored columns made the lane you attack and the lane you defend the
+    // same lane, so one stack did both jobs — measured at an 80% win rate with
+    // no counter. They must be able to differ.
+    let differed = 0;
+    for (let seed = 0; seed < 200; seed++) {
+      const a = hqAnchorsForSeed(seed);
+      if (a.A.col !== a.B.col) differed++;
+    }
+    expect(differed).toBeGreaterThan(120);
+  });
+
+  it("keeps both HQs inside the board for every possible draw", () => {
     for (let seed = 0; seed < 500; seed++) {
       const a = hqAnchorsForSeed(seed);
       expect(a.A.col).toBeGreaterThanOrEqual(0);
       expect(a.A.col).toBeLessThanOrEqual(BOARD.cols - 2);
-      expect(a.A.col).toBe(a.B.col);
       expect(zoneOwner(a.A.row)).toBe("A");
       expect(zoneOwner(a.A.row + 1)).toBe("A");
       expect(zoneOwner(a.B.row)).toBe("B");
@@ -175,10 +185,13 @@ describe("hotseat flow", () => {
   });
 
   it("never exceeds the fixed army allowance", () => {
-    store().selectType("tank");
+    store().selectType("mg");
     for (let col = 0; col < 8; col++) store().place(6, col);
-    const tanks = store().deployments.A.units.filter((u) => u.type === "tank");
-    expect(tanks).toHaveLength(2);
+    expect(store().deployments.A.units.filter((u) => u.type === "mg")).toHaveLength(3);
+
+    store().selectType("tank");
+    for (let col = 0; col < 6; col++) store().place(7, col);
+    expect(store().deployments.A.units.filter((u) => u.type === "tank")).toHaveLength(1);
   });
 
   it("rotates a placed unit through all four facings", () => {

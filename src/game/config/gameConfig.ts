@@ -53,26 +53,34 @@ export interface HqAnchors {
 }
 
 /**
- * Both HQs stand on the rear rank of their own zone, in a COLUMN drawn per
- * match — the same column for both sides, so the two objectives are exact
- * mirrors and neither player gets an easier problem.
+ * Both HQs stand on the rear rank of their own zone, each in a column drawn
+ * INDEPENDENTLY per match.
  *
- * Why the column and not the row: which lane you must force, and which lane you
- * must hold, is the decision that actually changes between matches. Varying the
- * depth would mostly change how long the battle takes. Keeping the rank fixed
- * also leaves the rear rows free of anything else, which is what lets stored
- * bot formations adapt to the drawn position instead of breaking on it.
+ * The columns were mirrored at first, and that was a mistake: it made the lane
+ * you must attack and the lane you must defend the same lane, so one stack of
+ * units did both jobs at once. Measured over 150 matches per pairing, a
+ * formation that simply piled everything into that column won 80% of the time
+ * and nothing beat it.
  *
- * This is §41's prescribed answer to solved formations: map variety, not dice.
- * The draw is seeded, so a match remains fully reproducible from its seed, and
- * the store holds it steady across a rematch so edit-and-rerun still works.
+ * Drawing the two columns separately forces the choice the game is supposed to
+ * be about — how much do you commit forward versus hold back — and dropped that
+ * same formation to 56%, level with an ordinary front line.
+ *
+ * Fairness does not require identical columns, only identical *problems*: both
+ * players face one objective to crack and one to hold, at a distance drawn from
+ * the same distribution. The gap between the columns varies per match, which is
+ * itself the interesting variable.
+ *
+ * §41's prescribed answer to solved formations is map variety, not dice. The
+ * draw is seeded, so a match stays reproducible from one number, and the store
+ * holds it steady across a rematch so edit-and-rerun still works.
  */
 export function hqAnchorsForSeed(seed: number): HqAnchors {
   const rng = mulberry32(seed);
-  const col = rng.nextInt(BOARD.cols - HQ_SIZE + 1);
+  const span = BOARD.cols - HQ_SIZE + 1;
   return {
-    A: { row: BOARD.teamARows[1] - HQ_SIZE + 1, col },
-    B: { row: BOARD.teamBRows[0], col },
+    A: { row: BOARD.teamARows[1] - HQ_SIZE + 1, col: rng.nextInt(span) },
+    B: { row: BOARD.teamBRows[0], col: rng.nextInt(span) },
   };
 }
 

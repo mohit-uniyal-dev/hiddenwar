@@ -5,13 +5,7 @@
  */
 
 import { create } from "zustand";
-import {
-  BOARD,
-  HQ_ANCHOR,
-  HQ_SIZE,
-  type HqAnchors,
-  hqAnchorsForSeed,
-} from "../game/config/gameConfig.ts";
+import { HQ_ANCHOR, type HqAnchors, hqAnchorsForSeed } from "../game/config/gameConfig.ts";
 import { MVP_ARMY, PLACEABLE_ARMY, type Roster, UNITS } from "../game/config/units.ts";
 import { botById } from "../game/content/bots.ts";
 import { type Puzzle, puzzleById } from "../game/content/puzzles.ts";
@@ -90,15 +84,15 @@ function newSeed(): number {
 }
 
 /**
- * A stored formation carries the HQ position it was built around, so the human
- * mirrors the bot rather than the other way round. Anything else would wall a
- * bot's sandbags around empty ground.
+ * A stored formation carries the HQ position it was built around — moving the
+ * objective under it would wall its sandbags around empty ground. The player's
+ * own column is still drawn, since the two columns are independent.
  */
-function anchorsFromBotDeployment(deployment: Deployment): HqAnchors {
+function anchorsFromBotDeployment(deployment: Deployment, seed: number): HqAnchors {
   const hq = deployment.units.find((unit) => unit.type === "hq");
   if (hq === undefined) return HQ_ANCHOR;
   return {
-    A: { row: BOARD.rows - HQ_SIZE - hq.row, col: hq.col },
+    A: hqAnchorsForSeed(seed).A,
     B: { row: hq.row, col: hq.col },
   };
 }
@@ -173,14 +167,15 @@ export const useGame = create<GameState>((set, get) => ({
   startBot: (botId) => {
     const bot = botById(botId);
     if (bot === undefined) return;
-    const hqAnchors = anchorsFromBotDeployment(bot.deployment);
+    const matchSeed = newSeed();
+    const hqAnchors = anchorsFromBotDeployment(bot.deployment, matchSeed);
     set({
       phase: "deploy",
       mode: "bot",
       botId,
       puzzleId: null,
       activeTeam: "A",
-      matchSeed: newSeed(),
+      matchSeed,
       hqAnchors,
       // The bot's formation is loaded now but stays hidden until the reveal —
       // except its HQ, which is public.

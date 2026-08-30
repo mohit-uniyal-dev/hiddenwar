@@ -38,7 +38,7 @@ export function fullArmyA(): Deployment {
     u("mg", 5, 8),
     // Tanks behind the line: living units do not block, so the lanes stay open.
     u("tank", 6, 2),
-    u("tank", 6, 8),
+    u("mg", 6, 8),
     u("mortar", 7, 9),
     u("sandbag", 6, 4),
     u("sandbag", 6, 5),
@@ -62,7 +62,7 @@ export function fullArmyB(): Deployment {
     u("mg", 3, 7, "S"),
     u("mg", 3, 8, "S"),
     u("tank", 2, 2, "S"),
-    u("tank", 2, 8, "S"),
+    u("mg", 2, 8, "S"),
     u("mortar", 1, 9, "S"),
     u("sandbag", 2, 4),
     u("sandbag", 2, 5),

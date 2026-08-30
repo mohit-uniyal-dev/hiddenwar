@@ -122,10 +122,24 @@ export const UNITS: Record<UnitTypeId, UnitSpec> = {
 export type Roster = ReadonlyArray<{ readonly type: UnitTypeId; readonly count: number }>;
 
 /** The fixed army both players receive in Classic mode (§C.2). */
+/**
+ * One tank, not two.
+ *
+ * The second tank was what made an HQ rush unbeatable. §C.4 costs the objective
+ * at "9.8s solo, ~5.6s with both tanks" — two tanks aligned on the enemy HQ
+ * column finish it before the rest of the board becomes relevant, and measured
+ * head to head, nothing countered that. Cutting to one tank gives the defence
+ * time to answer, which turns a dedicated lane guard from a coin flip into a
+ * decisive counter (94% to 4%).
+ *
+ * The freed slot goes to a third machine gun — the only weapon whose cone
+ * covers neighbouring columns, so lanes support each other rather than each
+ * fighting alone.
+ */
 export const MVP_ARMY: Roster = [
   { type: "soldier", count: 5 },
-  { type: "mg", count: 2 },
-  { type: "tank", count: 2 },
+  { type: "mg", count: 3 },
+  { type: "tank", count: 1 },
   { type: "mortar", count: 1 },
   { type: "sandbag", count: 8 },
   { type: "hq", count: 1 },

@@ -20,12 +20,13 @@ pnpm dev          # http://localhost:5173
 | --- | --- |
 | `pnpm dev` | Vite dev server |
 | `pnpm build` | Typecheck + production bundle into `dist/` |
-| `pnpm test` | Vitest, 122 tests |
+| `pnpm test` | Vitest, 125 tests |
 | `pnpm test:watch` | Vitest in watch mode |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm lint` | Biome |
 | `pnpm format` | Biome, writing fixes |
 | `pnpm balance:sweep` | Play thousands of matches headlessly and print the §52 metrics. `--matches N`, `--seed N` |
+| `node scripts/matrix.ts` | Archetype head-to-head matrix — answers "does anything beat this shape?" |
 
 ---
 
@@ -47,7 +48,7 @@ Home  →  Blue deploys  →  hand off  →  Orange deploys  →  reveal + 3-2-1
 ```
 
 - **Deployment** — click to place, `R` to rotate, `Esc` to deselect, click a placed unit to rotate or remove it. Auto-fill and clear for fast iteration.
-- **Both HQs are automatic, public, and drawn fresh each match.** Neither player positions their own; both stand on their rear rank in the same column, mirrored, visible from the start. You place 18 units, not 19. Guessing the HQ's location was never the interesting hidden information — guessing lanes and facings is. The draw is seeded and held steady across a rematch, so each match poses a different problem while edit-and-rerun still works.
+- **Both HQs are automatic, public, and drawn fresh each match** — each on its own rear rank, in **independently drawn columns**, visible from the start. You place 18 units, not 19. Guessing the HQ's location was never the interesting hidden information; guessing lanes and facings is. The draw is seeded and held steady across a rematch, so each match poses a different problem while edit-and-rerun still works.
 - **Arc preview with LOS shadowing** — solid marks are tiles the unit can hit; faded marks are shadowed by *your own* cover. Shown as a ghost under the cursor before you commit.
 - **Battle playback** — tracers, shell arcs, explosions, health bars, damage states, a live army-strength bar, pause / 0.5× / 1× / 2× / restart, and exactly one slow-motion moment (the shot that kills an HQ).
 - **Battle report** — per-unit damage, kills and idle time, auto-generated tactical observations, and the two health metrics from §D.2.
@@ -114,13 +115,18 @@ Protected by a golden-log snapshot: any unintentional change to battle resolutio
 
 **Balance improved sharply as a side effect.** On the symmetric fixture the mortar's share of all damage fell from **56% to 33%** (tank 29%, MG 21%, soldier 17%), and lane openings from 14 to 2. Open question #5 in the review — the mortar carrying turtle-breaker, splash-punisher and indirect-fire duty alone — largely resolved itself once infantry could reach the enemy at all.
 
-**The open metric is duration — and the sweep reframed it.** Over 4,000 generated matches the *mean* is 27.3s and the median 27.6s, both inside the 15–30s target. But only **23.8% of matches land in the band**: p10 is 9.8s, p90 is 44.5s. The problem is not that battles run long, it is that the spread is enormous. Tuning the mean will not fix that — something is making outcomes bimodal, most likely whether firing lanes happen to line up at deployment.
+**Two measured design fixes landed after the sweep found a solved formation.**
 
-**The clearest single defect the sweep found: tanks.** 21.1% of tanks never fire a shot, and the average tank idles **18.9 seconds** — more than three times any other unit. They are width-1 line weapons, so they need an enemy in their exact column with a clear lane, and one in five never gets one.
+The sweep's head-to-head matrix showed the game had collapsed to a single lane: a formation that piled everything into the HQ column won **80%** overall and beat a front line 97-3, with no counter. Two causes, both now fixed:
 
-**Archetype win rates are lopsided.** Front line 66%, Spread 62%, random control 54%, Turtle 31%, Artillery-heavy 29%. A better-than-2:1 gap between pushing forward and holding back is a solved-formation warning (§41): depth and defence are underpowered relative to committing everything to the front rank.
+1. **The HQ columns were mirrored**, so the lane you attack and the lane you defend were the same lane — one stack did both jobs. They are now drawn independently. (Measured alone: 80% → 56%.)
+2. **The army had two tanks.** §C.4 costs the objective at "9.8s solo, ~5.6s with both tanks" — two tanks aligned on the HQ column end it before anything else matters. The army is now **5 soldiers / 3 MG / 1 tank / 1 mortar / 8 sandbags**.
 
-Healthy signals: 89% of matches end by HQ destruction (the primary win condition, as intended), draws are 3.3%, and idle units sit at 14.1% — just inside the §D.2 threshold.
+Current state over 6,000 matches: top archetype **67%** (was 80%), front line competitive at 61%, and a real counter pair — lane guard beats HQ rush **90% to 2%**. Matches inside the 15–30s band went **13% → 36%**, with mean 21.4s and median 20.6s both in band. 89% end by HQ destruction; idle units 10.7%.
+
+**Two things I tested and rejected**, recorded so nobody re-tries them: raising HQ HP made the rush *stronger* (73.6% at 200 HP → 79.2% at 400), and buffing splash barely touched it (73.6% → 70.4% at double strength) — §38's "punish clustering with splash" does not work at one mortar per army.
+
+**Still open.** Lane openings run 6.78 against a 2–4 target. The machine gun is now the top damage dealer at 40.5%, having replaced the mortar's old dominance — worth watching that it does not become the new one. With a single tank, your only breacher never fires in ~15% of matches.
 
 **Tuning levers, in preferred order** (§C.5): sandbag HP 60→45, tank cooldown 56→48 ticks, mortar cooldown 80→70. If battles end *too* fast, raise soldier HP 30→35 first — never slow the tanks, the breach cadence is the drama engine.
 

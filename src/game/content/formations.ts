@@ -19,7 +19,14 @@ import { canPlace } from "../models/deployment.ts";
 import type { Rng } from "../rng/mulberry32.ts";
 import type { Deployment, Direction, PlacedUnit, Team, UnitTypeId } from "../types.ts";
 
-export type ArchetypeId = "line" | "turtle" | "spread" | "artillery" | "random";
+export type ArchetypeId =
+  | "line"
+  | "turtle"
+  | "spread"
+  | "artillery"
+  | "random"
+  | "hqrush"
+  | "hqguard";
 
 interface Archetype {
   readonly id: ArchetypeId;
@@ -28,6 +35,13 @@ interface Archetype {
   readonly depths: Record<Exclude<UnitTypeId, "hq">, number[]>;
   /** "guard" hugs the HQ with sandbags; "scatter" spreads them. */
   readonly sandbags: "guard" | "scatter";
+  /**
+   * Bias every unit toward a column. Line weapons only ever hit the column they
+   * face down, so aligning them with the enemy HQ is the obvious way to convert
+   * a known objective into a win — this is here to measure whether that obvious
+   * play is also the dominant one.
+   */
+  readonly columnBias?: "enemyHq" | "ownHq";
 }
 
 export const ARCHETYPES: readonly Archetype[] = [
@@ -56,6 +70,20 @@ export const ARCHETYPES: readonly Archetype[] = [
     sandbags: "scatter",
   },
   {
+    id: "hqrush",
+    label: "HQ rush",
+    depths: { soldier: [0, 1], mg: [0, 1], tank: [1, 0], mortar: [2, 3], sandbag: [2, 3] },
+    sandbags: "scatter",
+    columnBias: "enemyHq",
+  },
+  {
+    id: "hqguard",
+    label: "HQ lane guard",
+    depths: { soldier: [0, 1], mg: [0, 1], tank: [1, 2], mortar: [3], sandbag: [1, 2] },
+    sandbags: "guard",
+    columnBias: "ownHq",
+  },
+  {
     id: "random",
     label: "Random (control)",
     depths: {
@@ -71,6 +99,14 @@ export const ARCHETYPES: readonly Archetype[] = [
 
 export function archetypeById(id: ArchetypeId): Archetype {
   return ARCHETYPES.find((a) => a.id === id) ?? (ARCHETYPES[0] as Archetype);
+}
+
+function biasCol(archetype: Archetype, anchors: HqAnchors, team: Team): number {
+  const enemy = team === "A" ? anchors.B : anchors.A;
+  const own = anchors[team];
+  const target = archetype.columnBias === "ownHq" ? own : enemy;
+  // Centre of the 2-wide footprint.
+  return target.col;
 }
 
 /** Depth 0 is the rank nearest the enemy, whichever side you are on. */
@@ -136,10 +172,21 @@ export function generateFormation(
   for (const entry of PLACEABLE_ARMY) {
     for (let n = 0; n < entry.count; n++) {
       const preferred = archetype.depths[entry.type as Exclude<UnitTypeId, "hq">];
+      const spread = shuffled(ALL_COLS, rng);
+      const biased =
+        archetype.columnBias === undefined
+          ? spread
+          : // Nearest columns to the target lane first, ties broken by the
+            // shuffle so formations still vary between matches.
+            [...spread].sort(
+              (x, y) =>
+                Math.abs(x - biasCol(archetype, anchors, team)) -
+                Math.abs(y - biasCol(archetype, anchors, team)),
+            );
       const cols =
         entry.type === "sandbag" && archetype.sandbags === "guard" && n < guardCols.length
-          ? [...guardCols, ...shuffled(ALL_COLS, rng)]
-          : shuffled(ALL_COLS, rng);
+          ? [...guardCols, ...biased]
+          : biased;
 
       const depths =
         entry.type === "sandbag" && archetype.sandbags === "guard"

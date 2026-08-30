@@ -201,8 +201,8 @@ Ready is irreversible.
 ### The HQ is placed automatically, and both are public
 
 **Neither player positions their HQ.** Both stand on the rear rank of their own
-zone, in a **column drawn fresh each match** — the same column for both sides —
-and both are visible from the moment deployment begins.
+zone, each in a column **drawn independently each match**, and both are visible
+from the moment deployment begins.
 
 ```text
 Player B HQ   rows 1-2, columns C..C+1   (displayed)
@@ -210,11 +210,26 @@ Player A HQ   rows 8-9, columns C..C+1
                         C drawn per match from the match seed
 ```
 
-The draw is mirrored, so the two objectives are exact reflections and neither
-player gets the easier problem. It is seeded, so a match stays reproducible from
-one number — battlefield and battle alike. And it is **held steady across a
-rematch**: a rematch is the same battlefield with your formation reloaded, which
-is the entire point of edit-and-rerun (§D.2).
+### The columns must NOT be mirrored
+
+They were, at first, and it broke the game. Mirroring makes the lane you must
+attack and the lane you must defend **the same lane**, so a single stack of
+units does both jobs at once. Measured head to head at 150 matches per pairing,
+a formation that simply piled everything into that column won **80%** overall
+and beat an ordinary front line 97-3. Nothing countered it.
+
+Drawing the columns separately forces the choice the game exists to pose — how
+much do you commit forward, how much do you hold back — and dropped that same
+formation to 56%.
+
+Fairness does not require identical columns, only identical *problems*: each
+player has one objective to crack and one to hold, drawn from the same
+distribution. The distance between the two columns varies per match, and that
+distance is itself the interesting variable.
+
+The draw is seeded, so a match stays reproducible from one number — battlefield
+and battle alike — and it is **held steady across a rematch**, which is the
+entire point of edit-and-rerun (§D.2).
 
 **Why the column and not the row.** Which lane you must force, and which lane
 you must hold, is the decision that actually changes between matches. Varying
@@ -521,7 +536,28 @@ Classes: **Infantry** (Soldier, MG, Mortar — crewed weapons die like the peopl
 
 ## C.2 The army
 
-Per player: **5 Soldiers, 2 Machine Guns, 2 Tanks, 1 Mortar, 8 Sandbags, 1 HQ.**
+Per player: **5 Soldiers, 3 Machine Guns, 1 Tank, 1 Mortar, 8 Sandbags, 1 HQ.**
+
+> **Revised from 2 tanks / 2 MGs after measurement.** The second tank was what
+> made an HQ rush unbeatable. §C.4 costs the objective at *"9.8s solo, ~5.6s
+> with both tanks"* — two tanks aligned on the enemy HQ column finish it before
+> the rest of the board becomes relevant, and head to head **nothing countered
+> that** (66-98% against every other shape). Cutting to one tank gives the
+> defence time to answer: a dedicated lane guard now beats an HQ rush **90% to
+> 2%**, turning a dominant strategy into one half of a counter pair.
+>
+> The freed slot went to a third machine gun — the only weapon whose cone covers
+> neighbouring columns, so lanes support each other instead of each fighting
+> alone.
+>
+> Measured effect (6,000 matches): top archetype **80% → 67%**, front line now
+> competitive at 61%, matches inside the 15–30s band **13% → 36%**, mean 21.4s
+> and median 20.6s both in band, timeouts 2.2% → 1.9%.
+>
+> **What this cost:** with one tank, your only breacher never fires in ~15% of
+> matches (avg idle 13.6s), and §C.4's tank-versus-tank arithmetic no longer
+> describes a real matchup. The machine gun is now the top damage dealer at
+> 40.5%, replacing the mortar's old dominance.
 
 | Unit | HP | Damage | Type | Range | Cooldown | Pattern & arc | Priority | Class | Cost | Value |
 | --- | ---: | ---: | --- | --- | ---: | --- | --- | --- | ---: | ---: |

@@ -16,14 +16,17 @@
  * verdict — and read §51's playtest questions for the things it cannot measure.
  */
 
-import { hqAnchorsForSeed } from "../src/game/config/gameConfig.ts";
+import { BOARD, hqAnchorsForSeed } from "../src/game/config/gameConfig.ts";
 import { UNITS } from "../src/game/config/units.ts";
 import { ARCHETYPES, generateFormation } from "../src/game/content/formations.ts";
 import { simulateBattle } from "../src/game/engine/simulate.ts";
 import { mulberry32 } from "../src/game/rng/mulberry32.ts";
 import type { UnitTypeId } from "../src/game/types.ts";
 
+import { applyArmyOverride } from "./armyOverride.ts";
+
 const args = process.argv.slice(2);
+const ARMY = applyArmyOverride(args);
 const flag = (name: string, fallback: number): number => {
   const i = args.indexOf(`--${name}`);
   if (i === -1) return fallback;
@@ -32,6 +35,36 @@ const flag = (name: string, fallback: number): number => {
 };
 
 const MATCHES = flag("matches", 5000);
+/**
+ * EXPERIMENT: draw the two HQ columns independently instead of mirroring them.
+ * With mirrored columns your attack lane and your defence lane are the same, so
+ * stacking one column does both jobs at once. Splitting them should force a
+ * choice. --splithq 1
+ */
+const SPLIT_HQ = flag("splithq", 0) === 1;
+/**
+ * EXPERIMENT: override HQ hit points. A rush only works if it can finish the
+ * objective before the rest of the board becomes relevant, so HQ HP is the dial
+ * that decides how much of the army has to matter. --hqhp 350
+ */
+/**
+ * EXPERIMENT: the roadmap's stated counter to stacking is splash damage (§38).
+ * With one mortar doing 30, it may simply be too weak to impose a cost on
+ * concentration. --splash 100 raises the neighbour fraction. --mortardmg N
+ * raises the shell itself.
+ */
+const SPLASH = flag("splash", 0);
+if (SPLASH > 0) {
+  (UNITS.mortar as { splashPercent: number }).splashPercent = SPLASH;
+}
+const MORTAR_DMG = flag("mortardmg", 0);
+if (MORTAR_DMG > 0) {
+  (UNITS.mortar as { damage: number }).damage = MORTAR_DMG;
+}
+const HQ_HP = flag("hqhp", 0);
+if (HQ_HP > 0) {
+  (UNITS.hq as { hp: number }).hp = HQ_HP;
+}
 const BASE_SEED = flag("seed", 1);
 
 const TARGET_MIN = 15;
@@ -69,7 +102,13 @@ const started = Date.now();
 for (let i = 0; i < MATCHES; i++) {
   const seed = BASE_SEED + i;
   const rng = mulberry32(seed ^ 0x9e3779b9);
-  const anchors = hqAnchorsForSeed(seed);
+  const base = hqAnchorsForSeed(seed);
+  const anchors = SPLIT_HQ
+    ? {
+        A: base.A,
+        B: { row: base.B.row, col: mulberry32(seed * 2654435761).nextInt(BOARD.cols - 1) },
+      }
+    : base;
 
   const archA = ARCHETYPES[rng.nextInt(ARCHETYPES.length)];
   const archB = ARCHETYPES[rng.nextInt(ARCHETYPES.length)];
