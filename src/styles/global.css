@@ -1107,65 +1107,63 @@ table.report-table tr.dead td {
  * The end of a battle has to be unmistakable. Playback simply freezing, with
  * only a button label to tell you why, reads as a bug.
  */
-.overlay {
-  position: absolute;
-  inset: 0;
+/*
+ * The end-of-battle banner.
+ *
+ * It sits above the board rather than over it. Two earlier attempts put the
+ * result on the board — first as bare text, then on a panel — and both hid the
+ * final positions, which is the one thing worth looking at when a battle ends.
+ */
+.result-banner {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: center;
-  pointer-events: none;
-  background: rgba(28, 24, 16, 0.5);
-  backdrop-filter: blur(2px);
+  gap: 0.55rem;
+  width: 100%;
+  max-width: 560px;
+  padding: 0.5rem 1rem;
+  background: var(--paper);
+  border: 1px solid var(--board-edge);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
   animation: overlay-in 260ms ease-out;
 }
 
-/* The result rides on its own panel instead of directly on the board, so the
-   lettering never has to fight the pieces underneath it. */
-.overlay .card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.2rem;
-  padding: 1rem 2.4rem 1.1rem;
-  background: rgba(22, 19, 13, 0.94);
-  border: 1px solid rgba(255, 246, 221, 0.22);
-  border-radius: var(--radius);
-  box-shadow: 0 12px 44px rgba(0, 0, 0, 0.55);
-  color: #fff6dd;
-  font-size: 1.5rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
+.result-banner strong {
+  font-size: 1.15rem;
   font-weight: 700;
-  text-align: center;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.result-banner.a strong {
+  color: var(--team-a);
+}
+
+.result-banner.b strong {
+  color: var(--team-b);
+}
+
+.result-banner span {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.result-banner .dot {
+  color: var(--ink-faint);
 }
 
 @keyframes overlay-in {
   from {
     opacity: 0;
+    transform: translateY(-4px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
-}
-
-.overlay .who {
-  font-size: clamp(1.8rem, 5vh, 2.8rem);
-  letter-spacing: 0.18em;
-}
-
-.overlay .who.a {
-  color: #7bb8f0;
-}
-.overlay .who.b {
-  color: #f5b263;
-}
-
-.overlay .why {
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  font-weight: 500;
-  color: #ddd2b8;
-  text-transform: uppercase;
 }
 
 .hud-meta .paused {

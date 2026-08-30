@@ -129,29 +129,22 @@ export function BattleScreen() {
         </div>
       </div>
 
+      {/* The result reads ABOVE the board, not across it. Covering the final
+          positions hides exactly what a player wants to study when it ends. */}
+      {finished && (
+        <div className={`result-banner ${winnerClass}`}>
+          <strong>{winnerText}</strong>
+          <span>{reasonText}</span>
+          <span className="dot">·</span>
+          <span>{result.durationSeconds.toFixed(1)}s</span>
+        </div>
+      )}
+
       <div className="board-wrap">
         <Board units={units}>
           <FxLayer frame={frame} />
           {countdown >= 0 && (
             <div className="countdown">{countdown === 0 ? "BATTLE" : countdown}</div>
-          )}
-          {/* The battle ending must be unmistakable. Before this existed the
-              only signal was a button label quietly changing. */}
-          {finished && (
-            <div className="overlay end">
-              {/* Text sits on its own panel rather than straight on the board,
-                  so it never has to compete with the pieces underneath. */}
-              <div className="card">
-                <div className={`who ${winnerClass}`}>{winnerText}</div>
-                <div className="why">{reasonText}</div>
-                <div className="why">battle lasted {result.durationSeconds.toFixed(1)}s</div>
-              </div>
-            </div>
-          )}
-          {!finished && paused && countdown < 0 && (
-            <div className="overlay">
-              <div className="card">Paused</div>
-            </div>
           )}
         </Board>
       </div>
