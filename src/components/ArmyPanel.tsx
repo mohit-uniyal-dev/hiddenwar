@@ -1,5 +1,5 @@
 import { MVP_ARMY, type Roster, UNITS } from "../game/config/units.ts";
-import type { Deployment, PlacedUnit, Team, UnitTypeId } from "../game/types.ts";
+import type { Deployment, Direction, PlacedUnit, Team, UnitTypeId } from "../game/types.ts";
 import { isComplete, remainingFor } from "../store/gameStore.ts";
 import { UnitIcon } from "./UnitIcon.tsx";
 
@@ -11,6 +11,8 @@ const PRIORITY_LABEL: Record<string, string> = {
   infantryFirst: "Infantry first",
   cluster: "Largest cluster",
 };
+
+const FACING_ARROW: Record<Direction, string> = { N: "▲", E: "▶", S: "▼", W: "◀" };
 
 const UNIT_ROLE: Record<UnitTypeId, string> = {
   soldier: "Reliable rifle squad",
@@ -30,6 +32,8 @@ interface Props {
   deployment: Deployment;
   selectedType: UnitTypeId | null;
   selectedUnit: PlacedUnit | null;
+  /** Facing that will be used for the next placement, or of the selected unit. */
+  currentFacing: Direction;
   /** Live counts from the arc preview, so coverage is never left to inference. */
   coverage?: { covered: number; shadowed: number; dead: number };
   onSelectType: (type: UnitTypeId | null) => void;
@@ -47,6 +51,7 @@ export function ArmyPanel({
   deployment,
   selectedType,
   selectedUnit,
+  currentFacing,
   coverage,
   onSelectType,
   onRotate,
@@ -82,32 +87,53 @@ export function ArmyPanel({
 
       <p className="panel-lead">Choose a unit, then place it in your territory.</p>
 
-      {order.map((type) => {
-        const spec = UNITS[type];
-        const count = left.get(type) ?? 0;
-        const done = count === 0;
-        return (
-          <button
-            type="button"
-            key={type}
-            className={`army-row ${selectedType === type ? "active" : ""} ${done ? "done" : ""}`}
-            disabled={done}
-            onClick={() => onSelectType(selectedType === type ? null : type)}
-          >
-            <span className={`chip unit-chip team-${team}`}>
-              <UnitIcon type={type} />
-            </span>
-            <span className="name">
-              {spec.name}
-              <em>{UNIT_ROLE[type]}</em>
-            </span>
-            <span className="count">{count > 0 ? count : "✓"}</span>
-          </button>
-        );
-      })}
+      <div className="roster">
+        {order.map((type) => {
+          const spec = UNITS[type];
+          const count = left.get(type) ?? 0;
+          const done = count === 0;
+          return (
+            <button
+              type="button"
+              key={type}
+              className={`army-row ${selectedType === type ? "active" : ""} ${done ? "done" : ""}`}
+              disabled={done}
+              onClick={() => onSelectType(selectedType === type ? null : type)}
+            >
+              <span className={`chip unit-chip team-${team}`}>
+                <UnitIcon type={type} />
+              </span>
+              <span className="name">
+                {spec.name}
+                <em>{UNIT_ROLE[type]}</em>
+              </span>
+              <span className="count">{count > 0 ? count : "✓"}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/*
+        Touch has no `R` key and no hover. This control is the only way to set
+        facing on a phone, so it is always present rather than tucked inside the
+        selected-unit block.
+      */}
+      <button type="button" className="facing-control" onClick={onRotate}>
+        <span className="facing-label">Facing</span>
+        <span className={`facing-arrow ${currentFacing}`}>{FACING_ARROW[currentFacing]}</span>
+        <span className="facing-hint">tap to rotate · R</span>
+      </button>
 
       {inspect !== null && selectedUnit !== null && (
         <div className="stat-block">
+          <p className="stat-compact">
+            <b>{inspect.name}</b>
+            {inspect.damage !== undefined
+              ? ` · range ${inspect.minRange}–${inspect.maxRange} · ${
+                  PRIORITY_LABEL[inspect.priority ?? ""] ?? ""
+                }`
+              : " · blocks line of sight"}
+          </p>
           <dl>
             <dt>Unit</dt>
             <dd>{inspect.name}</dd>

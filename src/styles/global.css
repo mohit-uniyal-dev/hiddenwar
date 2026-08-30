@@ -1483,3 +1483,273 @@ ul.objectives li.fail {
     padding-inline: 1rem;
   }
 }
+
+/* ===================================================================== */
+/*  TOUCH / SMALL SCREENS                                                */
+/*                                                                       */
+/*  The goal is not "it reflows" — it is that the board and the unit      */
+/*  picker are on screen AT THE SAME TIME. Selecting a unit and then      */
+/*  scrolling up to find the board, then back down for the next one, is   */
+/*  the difference between playable and merely responsive.                */
+/* ===================================================================== */
+
+.facing-control {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.facing-control .facing-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.facing-control .facing-arrow {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.facing-control .facing-hint {
+  margin-left: auto;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.stat-compact {
+  display: none;
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 860px) and (orientation: portrait) {
+  .app {
+    justify-content: flex-start;
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  /* Board first, controls immediately beneath it — no hunting. */
+  .screen {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  /* As large as 12 columns allow, but never taller than the viewport. */
+  :root {
+    --tile: min(calc((100vw - 1.6rem) / 12), calc((100dvh - 19rem) / 9));
+  }
+
+  .board {
+    border-width: 2px;
+    margin: 0 auto;
+  }
+
+  .board-wrap {
+    gap: 0.25rem;
+  }
+
+  /* Long explanatory copy is desktop comfort; on a phone it costs a screenful. */
+  .board-note,
+  .panel-lead {
+    display: none;
+  }
+
+  .panel {
+    padding: 0.6rem;
+  }
+
+  .army {
+    min-width: 0;
+  }
+
+  .army-heading {
+    margin-bottom: 0.4rem;
+  }
+
+  /* The roster becomes a single swipeable row of large tap targets. */
+  .roster {
+    display: flex;
+    gap: 0.35rem;
+    overflow-x: auto;
+    padding-bottom: 0.3rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .roster::-webkit-scrollbar {
+    display: none;
+  }
+
+  .roster .army-row {
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    width: 4.4rem;
+    min-height: 4.4rem;
+    padding: 0.4rem 0.2rem;
+    margin: 0;
+    position: relative;
+  }
+
+  .roster .army-row .name {
+    font-size: 0.62rem;
+    text-align: center;
+    line-height: 1.15;
+    flex: none;
+  }
+
+  /* The one-line role blurb does not survive a 70px-wide card. */
+  .roster .army-row .name em {
+    display: none;
+  }
+
+  .roster .army-row .count {
+    position: absolute;
+    top: 0.1rem;
+    right: 0.25rem;
+    font-size: 0.66rem;
+    font-weight: 700;
+  }
+
+  .facing-control {
+    display: flex;
+  }
+
+  /* Replace the tall definition list with a single line. */
+  .stat-block dl {
+    display: none;
+  }
+
+  .stat-compact {
+    display: block;
+  }
+
+  .legend {
+    margin-top: 0.4rem;
+    padding-top: 0.4rem;
+  }
+
+  .row-actions button {
+    min-height: 2.75rem;
+  }
+
+  /* Battle + results stack rather than sitting side by side. */
+  .hud,
+  .result-banner {
+    max-width: 100%;
+  }
+
+  .controls {
+    flex-wrap: wrap;
+  }
+
+  .controls button {
+    min-height: 2.5rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .report {
+    max-height: none;
+    min-width: 0;
+  }
+
+  .metrics {
+    gap: 0.4rem;
+  }
+
+  .title h1 {
+    letter-spacing: 0.12em;
+  }
+}
+
+/*
+ * Landscape phones. Stacking here would be a mistake: the roster and buttons
+ * eat the little height there is, forcing ~17px tiles. Putting the panel BESIDE
+ * the board instead yields ~36px tiles — larger than portrait manages — while
+ * still keeping board and picker on screen together.
+ */
+@media (max-width: 980px) and (orientation: landscape) and (max-height: 560px) {
+  :root {
+    --tile: min(calc((100vw - 15rem) / 12), calc((100dvh - 2.5rem) / 9));
+  }
+
+  .app {
+    justify-content: center;
+    padding: 0.35rem;
+    gap: 0.35rem;
+  }
+
+  .screen {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .army {
+    flex: 0 0 13.5rem;
+    min-width: 0;
+    max-height: calc(100dvh - 0.7rem);
+    overflow-y: auto;
+    padding: 0.5rem;
+  }
+
+  .roster .army-row {
+    min-height: 2.4rem;
+    padding: 0.3rem 0.4rem;
+  }
+
+  .board-note,
+  .panel-lead,
+  .stat-block dl,
+  .legend {
+    display: none;
+  }
+
+  .stat-compact,
+  .facing-control {
+    display: block;
+  }
+
+  .facing-control {
+    display: flex;
+  }
+}
+
+/* Very narrow phones: reclaim every pixel the chrome is using. */
+@media (max-width: 400px) and (orientation: portrait) {
+  :root {
+    --tile: calc((100vw - 1rem) / 12);
+  }
+
+  .app {
+    padding: 0.35rem;
+  }
+
+  .roster .army-row {
+    width: 3.9rem;
+    min-height: 4rem;
+  }
+}
+
+/* Touch devices get no hover, so hover-only affordances must not be relied on. */
+@media (hover: none) {
+  .tile.placeable {
+    outline-color: rgba(74, 124, 47, 0.5);
+  }
+
+  .unit {
+    cursor: default;
+  }
+}

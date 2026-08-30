@@ -28,6 +28,43 @@ pnpm dev          # http://localhost:5173
 | `pnpm balance:sweep` | Play thousands of matches headlessly and print the §52 metrics. `--matches N`, `--seed N` |
 | `node scripts/matrix.ts` | Archetype head-to-head matrix — answers "does anything beat this shape?" |
 
+### Playing on a phone
+
+The board and the unit picker are deliberately kept on screen **together** — a
+layout where you pick a unit, scroll up to the board, then scroll back down is
+responsive but not playable.
+
+- **Portrait:** board on top, roster as one swipeable row of large tap targets
+  beneath it. Tile size is derived from viewport width, capped so the board
+  never overruns the screen.
+- **Landscape:** the panel moves *beside* the board instead of stacking.
+  Counter-intuitive but measured: stacking in landscape leaves so little height
+  that tiles shrink to ~17px, whereas side by side gives ~36px — bigger than
+  portrait manages.
+- Touch has no `R` key and no hover, so **facing has its own always-visible
+  control** rather than living inside the selected-unit panel, and the tall stat
+  list collapses to a single line.
+
+Honest limitation: 12 columns on a 360px-wide phone works out to ~28px tiles in
+portrait, under the 44px touch guidance in §E.6. Landscape is the better way to
+play on a small screen.
+
+---
+
+## Deploying
+
+Pushing to `main` builds and publishes to GitHub Pages via
+[.github/workflows/deploy.yml](.github/workflows/deploy.yml). Typecheck, lint and
+the full test suite run *before* the build, so a broken commit fails the deploy
+rather than shipping something your teammates then playtest.
+
+**One-time setup:** in the repo, *Settings → Pages → Build and deployment →
+Source* must be set to **GitHub Actions** (not "Deploy from a branch").
+
+The site lands at `https://<user>.github.io/hiddenwar/`. Vite is configured with
+`base: "./"`, so the same build also works at a domain root or opened straight
+from the filesystem — nothing depends on the repo name.
+
 ---
 
 ## What works today

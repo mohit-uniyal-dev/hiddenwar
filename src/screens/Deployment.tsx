@@ -182,6 +182,7 @@ export function DeploymentScreen() {
         deployment={deployment}
         selectedType={selectedType}
         selectedUnit={selectedUnit}
+        currentFacing={selectedUnit?.facing ?? selectedFacing}
         coverage={{
           covered: preview.covered.length,
           shadowed: preview.blocked.length,
