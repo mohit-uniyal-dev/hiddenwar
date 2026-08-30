@@ -1938,3 +1938,21 @@ ul.objectives li.fail {
     letter-spacing: 0.12em;
   }
 }
+
+/*
+ * Touch gestures.
+ *
+ * `touch-action` decides who owns a gesture. The board claims all of them, so
+ * dragging a unit never scrolls the page underneath it. The roster keeps
+ * horizontal panning for the browser — so the strip still scrolls — and hands
+ * vertical gestures to us, which is the direction a unit travels on its way to
+ * the board.
+ */
+.tile,
+.unit {
+  touch-action: none;
+}
+
+.roster .army-row {
+  touch-action: pan-x;
+}

@@ -38,6 +38,13 @@ interface Props {
   /** Live counts from the arc preview, so coverage is never left to inference. */
   coverage?: { covered: number; shadowed: number; dead: number };
   onSelectType: (type: UnitTypeId | null) => void;
+  /** Start dragging a fresh unit out of the roster onto the board. */
+  onBeginDrag?: (
+    type: UnitTypeId,
+    facing: Direction,
+    fromIndex: number | null,
+    event: React.PointerEvent,
+  ) => void;
   onRotate: () => void;
   onRemove: () => void;
   onClear: () => void;
@@ -55,6 +62,7 @@ export function ArmyPanel({
   currentFacing,
   coverage,
   onSelectType,
+  onBeginDrag,
   onRotate,
   onRemove,
   onClear,
@@ -128,6 +136,13 @@ export function ArmyPanel({
               className={`army-row ${selectedType === type ? "active" : ""} ${done ? "done" : ""}`}
               disabled={done}
               onClick={() => onSelectType(selectedType === type ? null : type)}
+              onPointerDown={(event) => {
+                if (done) return;
+                // Selecting on press keeps a plain tap arming tap-to-place,
+                // while a drag from the same press previews the arc on the way.
+                onSelectType(type);
+                onBeginDrag?.(type, currentFacing, null, event);
+              }}
             >
               <span className={`chip unit-chip team-${team}`}>
                 <UnitIcon type={type} />

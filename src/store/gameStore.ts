@@ -62,6 +62,8 @@ interface GameState {
   rotateSelected: () => void;
   place: (row: number, col: number) => void;
   removeAt: (index: number) => void;
+  /** Reposition an already-placed unit. Returns silently if the tile is illegal. */
+  moveTo: (index: number, row: number, col: number) => void;
   clearAll: () => void;
   autoFill: () => void;
   ready: () => void;
@@ -287,6 +289,21 @@ export const useGame = create<GameState>((set, get) => ({
       deployments: { ...deployments, [activeTeam]: { ...deployment, units } },
       selectedType: stillLeft ? selectedType : null,
     });
+  },
+
+  moveTo: (index, row, col) => {
+    const { activeTeam, deployments } = get();
+    const deployment = deployments[activeTeam];
+    const unit = deployment.units[index];
+    if (unit === undefined) return;
+    // The HQ is placed automatically and cannot be picked up.
+    if (unit.type === "hq") return;
+    // `ignoreIndex` lets a unit overlap its own current tiles, so a one-tile
+    // nudge is legal rather than colliding with where it already stands.
+    if (!canPlace(activeTeam, unit.type, row, col, deployment.units, index)) return;
+
+    const units = deployment.units.map((u, i) => (i === index ? { ...u, row, col } : u));
+    set({ deployments: { ...deployments, [activeTeam]: { ...deployment, units } } });
   },
 
   removeAt: (index) => {

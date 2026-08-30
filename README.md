@@ -20,7 +20,7 @@ pnpm dev          # http://localhost:5173
 | --- | --- |
 | `pnpm dev` | Vite dev server |
 | `pnpm build` | Typecheck + production bundle into `dist/` |
-| `pnpm test` | Vitest, 129 tests |
+| `pnpm test` | Vitest, 133 tests |
 | `pnpm test:watch` | Vitest in watch mode |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm lint` | Biome |
@@ -88,7 +88,8 @@ Home  →  Blue deploys  →  hand off  →  Orange deploys  →  reveal + 3-2-1
       →  battle plays back  →  battle report  →  rematch (formations preloaded)
 ```
 
-- **Deployment** — click to place, `R` to rotate, `Esc` to deselect, click a placed unit to rotate or remove it. Auto-fill and clear for fast iteration.
+- **Deployment** — drag a unit from the roster onto the board, or tap the roster then tap a tile. `R` rotates, `Esc` deselects. Auto-fill and clear for fast iteration.
+- **Drag to preview, drag to reposition.** One pointer gesture handles mouse, touch and pen. Dragging shows the ghost and its arc *before* you commit — which is the only way the preview is reachable on a phone, since hover does not exist there — and dragging a placed unit moves it rather than forcing a remove-and-replace.
 - **Both HQs are automatic, public, and drawn fresh each match** — each on its own rear rank, in **independently drawn columns**, visible from the start. You place 18 units, not 19. Guessing the HQ's location was never the interesting hidden information; guessing lanes and facings is. The draw is seeded and held steady across a rematch, so each match poses a different problem while edit-and-rerun still works.
 - **Arc preview with LOS shadowing** — solid marks are tiles the unit can hit; faded marks are shadowed by *your own* cover. Shown as a ghost under the cursor before you commit.
 - **Battle playback** — tracers, shell arcs, explosions, health bars, damage states, a live army-strength bar, pause / 0.5× / 1× / 2× / restart, and exactly one slow-motion moment (the shot that kills an HQ).

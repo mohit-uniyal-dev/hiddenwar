@@ -1,10 +1,40 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArmyPanel } from "../components/ArmyPanel.tsx";
 import { Board, type RenderUnit, toRenderUnits } from "../components/Board.tsx";
+import { UNITS } from "../game/config/units.ts";
 import { arcPreview } from "../game/engine/preview.ts";
 import { canPlace } from "../game/models/deployment.ts";
-import type { Coord, PlacedUnit } from "../game/types.ts";
+import type { Coord, Direction, PlacedUnit, UnitTypeId } from "../game/types.ts";
 import { activeKit, activePuzzle, useGame } from "../store/gameStore.ts";
+
+/** Movement past this many pixels turns a tap into a drag. */
+const DRAG_SLOP = 6;
+
+interface DragState {
+  readonly type: UnitTypeId;
+  readonly facing: Direction;
+  /** Index of the placed unit being moved, or null when dragging from the roster. */
+  readonly fromIndex: number | null;
+  readonly tile: Coord | null;
+  readonly moved: boolean;
+  readonly startX: number;
+  readonly startY: number;
+}
+
+/**
+ * The board tile under a screen coordinate.
+ *
+ * Hit-testing rather than event targets, because a pointer gesture stays bound
+ * to the element it started on — the tile under the finger has to be looked up.
+ */
+function tileFromPoint(x: number, y: number): Coord | null {
+  const el = document.elementFromPoint(x, y);
+  const tile = el instanceof Element ? el.closest("[data-row]") : null;
+  if (tile === null) return null;
+  const row = Number(tile.getAttribute("data-row"));
+  const col = Number(tile.getAttribute("data-col"));
+  return Number.isFinite(row) && Number.isFinite(col) ? { row, col } : null;
+}
 
 export function DeploymentScreen() {
   const mode = useGame((s) => s.mode);
@@ -20,6 +50,7 @@ export function DeploymentScreen() {
   const rotateSelected = useGame((s) => s.rotateSelected);
   const place = useGame((s) => s.place);
   const removeAt = useGame((s) => s.removeAt);
+  const moveTo = useGame((s) => s.moveTo);
   const clearAll = useGame((s) => s.clearAll);
   const autoFill = useGame((s) => s.autoFill);
   const ready = useGame((s) => s.ready);
@@ -30,6 +61,67 @@ export function DeploymentScreen() {
 
   const [hovered, setHovered] = useState<Coord | null>(null);
 
+  /**
+   * One pointer gesture, covering mouse, touch and pen.
+   *
+   * This is what makes the arc preview reachable on a phone at all: hover does
+   * not exist on touch, so without a drag there was no way to see a unit's
+   * firing lane BEFORE committing it to a tile. The same gesture repositions a
+   * unit that is already on the board.
+   */
+  const [drag, setDrag] = useState<DragState | null>(null);
+
+  const beginDrag = useCallback(
+    (type: UnitTypeId, facing: Direction, fromIndex: number | null, event: React.PointerEvent) => {
+      setDrag({
+        type,
+        facing,
+        fromIndex,
+        tile: null,
+        moved: false,
+        startX: event.clientX,
+        startY: event.clientY,
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (drag === null) return;
+
+    const move = (event: PointerEvent) => {
+      // A few pixels of slop, so a tap stays a tap.
+      const far =
+        Math.abs(event.clientX - drag.startX) > DRAG_SLOP ||
+        Math.abs(event.clientY - drag.startY) > DRAG_SLOP;
+      const tile = tileFromPoint(event.clientX, event.clientY);
+      setDrag((d) => (d === null ? d : { ...d, tile, moved: d.moved || far }));
+    };
+
+    const finish = (event: PointerEvent) => {
+      const tile = tileFromPoint(event.clientX, event.clientY);
+      setDrag((d) => {
+        // A gesture that never moved is a tap — leave it to the click handler.
+        if (d !== null && d.moved && tile !== null) {
+          if (d.fromIndex === null) place(tile.row, tile.col);
+          else moveTo(d.fromIndex, tile.row, tile.col);
+        }
+        return null;
+      });
+    };
+
+    const cancel = () => setDrag(null);
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", cancel);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", cancel);
+    };
+  }, [drag, place, moveTo]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "r" || e.key === "R") {
@@ -39,6 +131,7 @@ export function DeploymentScreen() {
       if (e.key === "Escape") {
         selectType(null);
         selectPlaced(null);
+        setDrag(null);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -48,36 +141,46 @@ export function DeploymentScreen() {
   const selectedUnit: PlacedUnit | null =
     selectedIndex !== null ? (deployment.units[selectedIndex] ?? null) : null;
 
-  const hoverLegal =
-    selectedType !== null && hovered !== null
-      ? canPlace(activeTeam, selectedType, hovered.row, hovered.col, deployment.units)
-      : true;
+  /** Where the piece under the cursor or finger would land, if anywhere. */
+  const dragTile = drag !== null && drag.moved ? drag.tile : null;
+  const pending: PlacedUnit | null =
+    drag !== null && dragTile !== null
+      ? { type: drag.type, row: dragTile.row, col: dragTile.col, facing: drag.facing }
+      : selectedType !== null && hovered !== null
+        ? { type: selectedType, row: hovered.row, col: hovered.col, facing: selectedFacing }
+        : null;
+
+  const pendingLegal =
+    pending !== null &&
+    canPlace(
+      activeTeam,
+      pending.type,
+      pending.row,
+      pending.col,
+      deployment.units,
+      drag?.fromIndex ?? -1,
+    );
 
   const preview = useMemo(() => {
-    if (selectedUnit !== null) return arcPreview(activeTeam, deployment.units, selectedUnit);
-    if (selectedType !== null && hovered !== null && hoverLegal) {
-      return arcPreview(activeTeam, deployment.units, {
-        type: selectedType,
-        row: hovered.row,
-        col: hovered.col,
-        facing: selectedFacing,
-      });
+    // While a unit is being moved, preview it from the NEW tile with its old
+    // position excluded — otherwise it blocks its own line of sight.
+    if (pending !== null && pendingLegal) {
+      const lifted = drag?.fromIndex;
+      const others =
+        lifted == null ? deployment.units : deployment.units.filter((_, i) => i !== lifted);
+      return arcPreview(activeTeam, others, pending);
     }
+    if (selectedUnit !== null) return arcPreview(activeTeam, deployment.units, selectedUnit);
     return { covered: [], blocked: [], deadZone: [] };
-  }, [
-    activeTeam,
-    deployment.units,
-    selectedUnit,
-    selectedType,
-    hovered,
-    hoverLegal,
-    selectedFacing,
-  ]);
+  }, [activeTeam, deployment.units, selectedUnit, pending, pendingLegal, drag?.fromIndex]);
 
-  const units: RenderUnit[] = toRenderUnits(deployment.units, activeTeam).map((u) => ({
-    ...u,
-    selected: u.index === selectedIndex,
-  }));
+  const lifted = drag !== null && drag.moved ? drag.fromIndex : null;
+
+  const units: RenderUnit[] = toRenderUnits(deployment.units, activeTeam)
+    // The unit being moved is lifted off its old tile, so the ghost reads as
+    // "this is where it goes" rather than showing two of the same piece.
+    .filter((u) => lifted === null || u.index !== lifted)
+    .map((u) => ({ ...u, selected: u.index === selectedIndex }));
 
   // A puzzle's enemy is visible the whole time — solving it IS reading their
   // formation (§E.2). Outside puzzles only their HQ is public: it is placed
@@ -92,14 +195,14 @@ export function DeploymentScreen() {
     ...toRenderUnits(visibleEnemy, enemyTeam).map((u) => ({ ...u, key: `enemy-${u.key}` })),
   );
 
-  if (selectedType !== null && hovered !== null && hoverLegal) {
+  if (pending !== null && pendingLegal) {
     units.push({
       key: "ghost",
-      type: selectedType,
+      type: pending.type,
       team: activeTeam,
-      row: hovered.row,
-      col: hovered.col,
-      facing: selectedFacing,
+      row: pending.row,
+      col: pending.col,
+      facing: pending.facing,
     });
   }
 
@@ -130,9 +233,9 @@ export function DeploymentScreen() {
 
       <div className="board-wrap">
         {/*
-          Fills the dead space above the board on a phone, and closes a real
-          gap while it is there: until this existed there was no way out of a
-          match short of finishing it.
+          Fills the dead space above the board on a phone, and closes a real gap
+          while it is there: until this existed there was no way out of a match
+          short of finishing it.
         */}
         <div className="board-topbar">
           <button type="button" className="ghost-btn" onClick={backHome}>
@@ -167,10 +270,22 @@ export function DeploymentScreen() {
           arcBlocked={preview.blocked}
           arcDead={preview.deadZone}
           interactiveZone={activeTeam}
-          hovered={hovered}
-          hoverLegal={hoverLegal}
+          hovered={dragTile ?? hovered}
+          hoverLegal={pending === null ? true : pendingLegal}
           onTileEnter={(row, col) => setHovered({ row, col })}
           onTileLeave={() => setHovered(null)}
+          onTilePointerDown={(row, col, event) => {
+            // Dragging a piece already on the board repositions it.
+            if (selectedType !== null) return;
+            const index = deployment.units.findIndex((u) => {
+              const size = UNITS[u.type].size;
+              return row >= u.row && row < u.row + size && col >= u.col && col < u.col + size;
+            });
+            const unit = index >= 0 ? deployment.units[index] : undefined;
+            // The HQ is placed automatically and cannot be picked up.
+            if (unit === undefined || unit.type === "hq") return;
+            beginDrag(unit.type, unit.facing, index, event);
+          }}
           onTileClick={(row, col) => {
             const existing = deployment.units.findIndex((u) => u.row === row && u.col === col);
             if (selectedType !== null) place(row, col);
@@ -191,9 +306,7 @@ export function DeploymentScreen() {
         <p className="hint board-note">
           {puzzle !== null
             ? "The enemy formation is fully visible. Work out the placement that beats it."
-            : `Both HQs are fixed and public${
-                mode === "ai" ? ", and the AI has already picked its ground" : ""
-              } — their units stay hidden until the reveal. You know what to attack and what to defend.`}
+            : "Drag a unit onto the board to see its firing lane before you commit, and drag a placed one to move it. Both HQs are fixed and public; everything else stays hidden until the reveal."}
         </p>
       </div>
 
@@ -211,6 +324,7 @@ export function DeploymentScreen() {
           dead: preview.deadZone.length,
         }}
         onSelectType={selectType}
+        onBeginDrag={beginDrag}
         onRotate={rotateSelected}
         onRemove={() => selectedIndex !== null && removeAt(selectedIndex)}
         onClear={clearAll}

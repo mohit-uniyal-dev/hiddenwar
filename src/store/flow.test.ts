@@ -195,6 +195,48 @@ describe("hotseat flow", () => {
     expect(store().deployments.A.units.filter((u) => u.type === "tank")).toHaveLength(1);
   });
 
+  it("repositions a placed unit by moving it to an empty tile", () => {
+    store().selectType("soldier");
+    store().place(6, 3);
+    const index = store().deployments.A.units.findIndex((u) => u.type === "soldier");
+
+    store().moveTo(index, 7, 4);
+    expect(store().deployments.A.units[index]).toMatchObject({ row: 7, col: 4 });
+
+    // Facing survives the move — repositioning is not a re-placement.
+    expect(store().deployments.A.units[index]?.facing).toBe("N");
+  });
+
+  it("refuses moves onto illegal ground", () => {
+    store().selectType("soldier");
+    store().place(6, 3);
+    store().selectType("soldier");
+    store().place(6, 5);
+    const index = store().deployments.A.units.findIndex((u) => u.type === "soldier");
+    const before = store().deployments.A.units[index];
+
+    store().moveTo(index, 4, 3); // no man's land
+    store().moveTo(index, 2, 3); // enemy half
+    store().moveTo(index, 6, 5); // occupied by the other soldier
+    expect(store().deployments.A.units[index]).toEqual(before);
+  });
+
+  it("lets a unit shuffle within its own footprint", () => {
+    store().selectType("soldier");
+    store().place(6, 3);
+    const index = store().deployments.A.units.findIndex((u) => u.type === "soldier");
+    // A one-tile nudge must not collide with where the unit already stands.
+    store().moveTo(index, 6, 4);
+    expect(store().deployments.A.units[index]).toMatchObject({ row: 6, col: 4 });
+  });
+
+  it("never lets the HQ be dragged off its anchor", () => {
+    const anchor = store().hqAnchors.A;
+    const hqIndex = store().deployments.A.units.findIndex((u) => u.type === "hq");
+    store().moveTo(hqIndex, 6, 1);
+    expect(store().deployments.A.units[hqIndex]).toMatchObject(anchor);
+  });
+
   it("rotates a placed unit through all four facings", () => {
     store().selectType("soldier");
     store().place(6, 3);

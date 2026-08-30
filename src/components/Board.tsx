@@ -32,6 +32,7 @@ interface Props {
   onTileEnter?: (row: number, col: number) => void;
   onTileLeave?: () => void;
   onTileClick?: (row: number, col: number) => void;
+  onTilePointerDown?: (row: number, col: number, event: React.PointerEvent) => void;
   onUnitClick?: (unit: RenderUnit, event: React.MouseEvent) => void;
   children?: React.ReactNode;
 }
@@ -49,6 +50,7 @@ export function Board({
   onTileEnter,
   onTileLeave,
   onTileClick,
+  onTilePointerDown,
   onUnitClick,
   children,
 }: Props) {
@@ -84,6 +86,11 @@ export function Board({
           type="button"
           key={k}
           className={classes}
+          // Read back by document.elementFromPoint during a drag: pointer
+          // events stay with the element the gesture started on, so the tile
+          // under the finger has to be found by hit-testing.
+          data-row={row}
+          data-col={col}
           disabled={!canInteract}
           aria-label={
             unit === undefined
@@ -94,6 +101,7 @@ export function Board({
           onFocus={() => onTileEnter?.(row, col)}
           onMouseLeave={() => onTileLeave?.()}
           onClick={() => onTileClick?.(row, col)}
+          onPointerDown={(e) => onTilePointerDown?.(row, col, e)}
         >
           {unit && (
             <UnitToken
