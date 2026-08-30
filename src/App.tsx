@@ -15,8 +15,16 @@ const SHOW_PUZZLES = false;
 export function App() {
   const phase = useGame((s) => s.phase);
 
+  // Short screens read better centred; the play screens must stay top-aligned
+  // on a phone or the board is pushed off the bottom.
+  const centred = phase === "home" || phase === "handoff";
+  // Deployment uses a bottom-sheet layout on phones: the board centres in the
+  // space above a fixed sheet, and expanding the sheet overlays it rather than
+  // shifting it.
+  const sheet = phase === "deploy";
+
   return (
-    <div className="app">
+    <div className={`app${centred ? " app-centred" : ""}${sheet ? " app-sheet" : ""}`}>
       {phase === "home" && <HomeScreen />}
       {phase === "deploy" && <DeploymentScreen />}
       {phase === "handoff" && <HandoffScreen />}
@@ -100,7 +108,7 @@ function HomeScreen() {
               vs. AI
             </button>
           </div>
-          <p className="hint">{selected?.blurb} Their army is generated fresh each match.</p>
+          <p className="hint keep-on-mobile">{selected?.blurb}</p>
         </div>
       </div>
     </>

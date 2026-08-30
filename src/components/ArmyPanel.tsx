@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { MVP_ARMY, type Roster, UNITS } from "../game/config/units.ts";
 import type { Deployment, Direction, PlacedUnit, Team, UnitTypeId } from "../game/types.ts";
 import { isComplete, remainingFor } from "../store/gameStore.ts";
@@ -60,6 +61,18 @@ export function ArmyPanel({
   onAutoFill,
   onReady,
 }: Props) {
+  // On a phone this panel is a bottom sheet: the roster and the primary action
+  // stay visible, everything else lives behind the toggle.
+  const [open, setOpen] = useState(false);
+
+  // Selecting a piece on the board opens the sheet, because rotate and remove
+  // live inside it. This has to nudge the same state the toggle owns — deriving
+  // `open` from the selection instead would leave the collapse button inert
+  // while anything was selected.
+  useEffect(() => {
+    if (selectedUnit !== null) setOpen(true);
+  }, [selectedUnit]);
+
   const left = remainingFor(deployment, kit);
   const ready = isComplete(deployment, kit);
   // A puzzle kit lists only the pieces it hands you.
@@ -71,7 +84,14 @@ export function ArmyPanel({
   const forceName = team === "A" ? "Blue Force" : "Orange Force";
 
   return (
-    <div className={`panel army team-${team}`}>
+    <div className={`panel army team-${team} ${open ? "expanded" : ""}`}>
+      <button
+        type="button"
+        className="sheet-grip"
+        aria-expanded={open}
+        aria-label={open ? "Collapse panel" : "Expand panel"}
+        onClick={() => setOpen((v) => !v)}
+      />
       <div className="army-heading">
         <span className="army-insignia">
           <UnitIcon type="hq" />
@@ -83,6 +103,15 @@ export function ArmyPanel({
         <span className={`roster-status ${ready ? "ready" : ""}`}>
           {ready ? "Ready" : `${placed}/${rosterSize}`}
         </span>
+        <button
+          type="button"
+          className="sheet-toggle"
+          aria-expanded={open}
+          aria-label={open ? "Collapse panel" : "Expand panel"}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {open ? "▾" : "▴"}
+        </button>
       </div>
 
       <p className="panel-lead">Choose a unit, then place it in your territory.</p>
@@ -112,17 +141,6 @@ export function ArmyPanel({
           );
         })}
       </div>
-
-      {/*
-        Touch has no `R` key and no hover. This control is the only way to set
-        facing on a phone, so it is always present rather than tucked inside the
-        selected-unit block.
-      */}
-      <button type="button" className="facing-control" onClick={onRotate}>
-        <span className="facing-label">Facing</span>
-        <span className={`facing-arrow ${currentFacing}`}>{FACING_ARROW[currentFacing]}</span>
-        <span className="facing-hint">tap to rotate · R</span>
-      </button>
 
       {inspect !== null && selectedUnit !== null && (
         <div className="stat-block">
@@ -218,7 +236,20 @@ export function ArmyPanel({
         </p>
       )}
 
-      <div className="row-actions">
+      <div className="row-actions tools">
+        {/*
+          Touch has no `R` key and no hover, so facing needs a visible control.
+          It shares the tool row rather than taking a full-width bar of its own.
+        */}
+        <button
+          type="button"
+          className="facing-control"
+          onClick={onRotate}
+          title="Rotate the selected unit, or the next one you place (R)"
+        >
+          <span className={`facing-arrow ${currentFacing}`}>{FACING_ARROW[currentFacing]}</span>
+          <span className="facing-label">Facing</span>
+        </button>
         <button type="button" onClick={onAutoFill}>
           Auto-fill
         </button>
