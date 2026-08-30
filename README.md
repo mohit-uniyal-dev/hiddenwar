@@ -20,11 +20,12 @@ pnpm dev          # http://localhost:5173
 | --- | --- |
 | `pnpm dev` | Vite dev server |
 | `pnpm build` | Typecheck + production bundle into `dist/` |
-| `pnpm test` | Vitest, 114 tests |
+| `pnpm test` | Vitest, 122 tests |
 | `pnpm test:watch` | Vitest in watch mode |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm lint` | Biome |
 | `pnpm format` | Biome, writing fixes |
+| `pnpm balance:sweep` | Play thousands of matches headlessly and print the §52 metrics. `--matches N`, `--seed N` |
 
 ---
 
@@ -113,7 +114,13 @@ Protected by a golden-log snapshot: any unintentional change to battle resolutio
 
 **Balance improved sharply as a side effect.** On the symmetric fixture the mortar's share of all damage fell from **56% to 33%** (tank 29%, MG 21%, soldier 17%), and lane openings from 14 to 2. Open question #5 in the review — the mortar carrying turtle-breaker, splash-punisher and indirect-fire duty alone — largely resolved itself once infantry could reach the enemy at all.
 
-**The open metric is duration.** Matches now run **31–47s** against a 15–30s target. Nothing has been tuned for it yet, deliberately: the levers below are guesses until someone plays a few dozen games.
+**The open metric is duration — and the sweep reframed it.** Over 4,000 generated matches the *mean* is 27.3s and the median 27.6s, both inside the 15–30s target. But only **23.8% of matches land in the band**: p10 is 9.8s, p90 is 44.5s. The problem is not that battles run long, it is that the spread is enormous. Tuning the mean will not fix that — something is making outcomes bimodal, most likely whether firing lanes happen to line up at deployment.
+
+**The clearest single defect the sweep found: tanks.** 21.1% of tanks never fire a shot, and the average tank idles **18.9 seconds** — more than three times any other unit. They are width-1 line weapons, so they need an enemy in their exact column with a clear lane, and one in five never gets one.
+
+**Archetype win rates are lopsided.** Front line 66%, Spread 62%, random control 54%, Turtle 31%, Artillery-heavy 29%. A better-than-2:1 gap between pushing forward and holding back is a solved-formation warning (§41): depth and defence are underpowered relative to committing everything to the front rank.
+
+Healthy signals: 89% of matches end by HQ destruction (the primary win condition, as intended), draws are 3.3%, and idle units sit at 14.1% — just inside the §D.2 threshold.
 
 **Tuning levers, in preferred order** (§C.5): sandbag HP 60→45, tank cooldown 56→48 ticks, mortar cooldown 80→70. If battles end *too* fast, raise soldier HP 30→35 first — never slow the tanks, the breach cadence is the drama engine.
 

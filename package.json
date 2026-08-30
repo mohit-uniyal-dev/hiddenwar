@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "biome check src",
-    "format": "biome format --write src"
+    "format": "biome format --write src",
+    "balance:sweep": "node scripts/sweep.ts"
   },
   "dependencies": {
     "react": "^19.0.0",
