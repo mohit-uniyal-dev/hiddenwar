@@ -102,7 +102,7 @@ export function DeploymentScreen() {
       const tile = tileFromPoint(event.clientX, event.clientY);
       setDrag((d) => {
         // A gesture that never moved is a tap — leave it to the click handler.
-        if (d !== null && d.moved && tile !== null) {
+        if (d?.moved && tile !== null) {
           if (d.fromIndex === null) place(tile.row, tile.col);
           else moveTo(d.fromIndex, tile.row, tile.col);
         }
@@ -142,7 +142,7 @@ export function DeploymentScreen() {
     selectedIndex !== null ? (deployment.units[selectedIndex] ?? null) : null;
 
   /** Where the piece under the cursor or finger would land, if anywhere. */
-  const dragTile = drag !== null && drag.moved ? drag.tile : null;
+  const dragTile = drag?.moved ? drag.tile : null;
   const pending: PlacedUnit | null =
     drag !== null && dragTile !== null
       ? { type: drag.type, row: dragTile.row, col: dragTile.col, facing: drag.facing }
@@ -174,7 +174,7 @@ export function DeploymentScreen() {
     return { covered: [], blocked: [], deadZone: [] };
   }, [activeTeam, deployment.units, selectedUnit, pending, pendingLegal, drag?.fromIndex]);
 
-  const lifted = drag !== null && drag.moved ? drag.fromIndex : null;
+  const lifted = drag?.moved ? drag.fromIndex : null;
 
   const units: RenderUnit[] = toRenderUnits(deployment.units, activeTeam)
     // The unit being moved is lifted off its old tile, so the ghost reads as

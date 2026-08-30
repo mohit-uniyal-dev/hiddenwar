@@ -1,0 +1,12 @@
+{
+  "name": "Hidden Front",
+  "short_name": "Hidden Front",
+  "description": "A hidden-deployment tactical auto-battler.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#292a22",
+  "theme_color": "#292a22"
+}

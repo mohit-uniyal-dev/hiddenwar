@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DisplayControls } from "./components/DisplayControls.tsx";
 import { DIFFICULTIES, type Difficulty } from "./game/content/formations.ts";
 import { PUZZLES } from "./game/content/puzzles.ts";
 import { BattleScreen } from "./screens/Battle.tsx";
@@ -24,7 +25,8 @@ export function App() {
   const sheet = phase === "deploy";
 
   return (
-    <div className={`app${centred ? " app-centred" : ""}${sheet ? " app-sheet" : ""}`}>
+    <div className={`app app-${phase}${centred ? " app-centred" : ""}${sheet ? " app-sheet" : ""}`}>
+      <DisplayControls />
       {phase === "home" && <HomeScreen />}
       {phase === "deploy" && <DeploymentScreen />}
       {phase === "handoff" && <HandoffScreen />}
