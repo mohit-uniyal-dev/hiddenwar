@@ -9,7 +9,6 @@ import { activeKit, activePuzzle, useGame } from "../store/gameStore.ts";
 export function DeploymentScreen() {
   const mode = useGame((s) => s.mode);
   const puzzleId = useGame((s) => s.puzzleId);
-  const mode2 = useGame((s) => s.mode);
   const activeTeam = useGame((s) => s.activeTeam);
   const deployment = useGame((s) => s.deployments[s.activeTeam]);
   const enemyDeployment = useGame((s) => s.deployments[s.activeTeam === "A" ? "B" : "A"]);
@@ -130,6 +129,29 @@ export function DeploymentScreen() {
       )}
 
       <div className="board-wrap">
+        {/*
+          Fills the dead space above the board on a phone, and closes a real
+          gap while it is there: until this existed there was no way out of a
+          match short of finishing it.
+        */}
+        <div className="board-topbar">
+          <button type="button" className="ghost-btn" onClick={backHome}>
+            <span aria-hidden="true">←</span> Menu
+          </button>
+          <span className="topbar-title">
+            {mode === "hotseat"
+              ? `${activeTeam === "A" ? "Blue" : "Orange"} deploys`
+              : "Your deployment"}
+          </span>
+          <button
+            type="button"
+            className="ghost-btn"
+            onClick={clearAll}
+            disabled={deployment.units.length <= 1}
+          >
+            <span aria-hidden="true">⟲</span> Reset
+          </button>
+        </div>
         <div className={`battlefield-heading team-${activeTeam}`}>
           <span>
             <small>Planning phase</small>
@@ -170,7 +192,7 @@ export function DeploymentScreen() {
           {puzzle !== null
             ? "The enemy formation is fully visible. Work out the placement that beats it."
             : `Both HQs are fixed and public${
-                mode2 === "ai" ? ", and the AI has already picked its ground" : ""
+                mode === "ai" ? ", and the AI has already picked its ground" : ""
               } — their units stay hidden until the reveal. You know what to attack and what to defend.`}
         </p>
       </div>
