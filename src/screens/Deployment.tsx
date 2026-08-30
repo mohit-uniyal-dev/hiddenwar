@@ -132,6 +132,15 @@ export function DeploymentScreen() {
       )}
 
       <div className="board-wrap">
+        <div className={`battlefield-heading team-${activeTeam}`}>
+          <span>
+            <small>Planning phase</small>
+            <strong>Build your formation</strong>
+          </span>
+          <span className="battlefield-objective">
+            <b>Mission</b> Defend your HQ · Break their line
+          </span>
+        </div>
         <Board
           units={units}
           arc={preview.covered}

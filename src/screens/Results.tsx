@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Board, type RenderUnit } from "../components/Board.tsx";
+import { UnitIcon } from "../components/UnitIcon.tsx";
 import { botById } from "../game/content/bots.ts";
 import { PUZZLES, evaluatePuzzle } from "../game/content/puzzles.ts";
 import { buildInsights } from "../game/engine/insights.ts";
@@ -146,8 +147,8 @@ export function ResultsScreen() {
               .map((u) => (
                 <tr key={u.id} className={u.survived ? "" : "dead"}>
                   <td>
-                    <span style={{ color: u.team === "A" ? "var(--team-a)" : "var(--team-b)" }}>
-                      ■
+                    <span className={`report-unit-icon team-${u.team}`}>
+                      <UnitIcon type={u.type} />
                     </span>{" "}
                     {u.name}
                   </td>

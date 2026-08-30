@@ -1,7 +1,7 @@
 import { MVP_ARMY, type Roster, UNITS } from "../game/config/units.ts";
 import type { Deployment, PlacedUnit, Team, UnitTypeId } from "../game/types.ts";
 import { isComplete, remainingFor } from "../store/gameStore.ts";
-import { GLYPH } from "./UnitToken.tsx";
+import { UnitIcon } from "./UnitIcon.tsx";
 
 const ORDER: UnitTypeId[] = ["soldier", "mg", "tank", "mortar", "sandbag", "hq"];
 
@@ -10,6 +10,15 @@ const PRIORITY_LABEL: Record<string, string> = {
   highestHp: "Highest HP in arc",
   infantryFirst: "Infantry first",
   cluster: "Largest cluster",
+};
+
+const UNIT_ROLE: Record<UnitTypeId, string> = {
+  soldier: "Reliable rifle squad",
+  mg: "Wide cone · anti-infantry",
+  tank: "Heavy armor · line breaker",
+  mortar: "Indirect fire · splash",
+  sandbag: "Cover · blocks sight",
+  hq: "Protect at all costs",
 };
 
 interface Props {
@@ -51,10 +60,27 @@ export function ArmyPanel({
   // A puzzle kit lists only the pieces it hands you.
   const order = ORDER.filter((type) => kit.some((entry) => entry.type === type));
   const inspect = selectedUnit !== null ? UNITS[selectedUnit.type] : null;
+  const remaining = countLeft(left);
+  const rosterSize = kit.reduce((total, entry) => total + entry.count, 0);
+  const placed = rosterSize - remaining;
+  const forceName = team === "A" ? "Blue Force" : "Orange Force";
 
   return (
-    <div className="panel army">
-      <h2>{team === "A" ? "Blue Force" : "Orange Force"} — Army</h2>
+    <div className={`panel army team-${team}`}>
+      <div className="army-heading">
+        <span className="army-insignia">
+          <UnitIcon type="hq" />
+        </span>
+        <span className="army-heading-copy">
+          <small>Deployment command</small>
+          <h2>{forceName}</h2>
+        </span>
+        <span className={`roster-status ${ready ? "ready" : ""}`}>
+          {ready ? "Ready" : `${placed}/${rosterSize}`}
+        </span>
+      </div>
+
+      <p className="panel-lead">Choose a unit, then place it in your territory.</p>
 
       {order.map((type) => {
         const spec = UNITS[type];
@@ -68,11 +94,14 @@ export function ArmyPanel({
             disabled={done}
             onClick={() => onSelectType(selectedType === type ? null : type)}
           >
-            <span className={`chip team-${team}`} style={chipStyle(team)}>
-              {GLYPH[type]}
+            <span className={`chip unit-chip team-${team}`}>
+              <UnitIcon type={type} />
             </span>
-            <span className="name">{spec.name}</span>
-            <span className="count">{count > 0 ? `x${count}` : "—"}</span>
+            <span className="name">
+              {spec.name}
+              <em>{UNIT_ROLE[type]}</em>
+            </span>
+            <span className="count">{count > 0 ? count : "✓"}</span>
           </button>
         );
       })}
@@ -173,7 +202,7 @@ export function ArmyPanel({
       </div>
       <div className="row-actions">
         <button type="button" className="primary" disabled={!ready} onClick={onReady}>
-          {ready ? readyLabel : `${countLeft(left)} left`}
+          {ready ? readyLabel : `Deploy ${remaining} more`}
         </button>
       </div>
       {ready && readyLabel === "Ready" && (
@@ -187,11 +216,4 @@ function countLeft(left: Map<UnitTypeId, number>): number {
   let total = 0;
   for (const n of left.values()) total += n;
   return total;
-}
-
-function chipStyle(team: Team): React.CSSProperties {
-  return {
-    background: team === "A" ? "var(--team-a)" : "var(--team-b)",
-    color: team === "A" ? "#eaf2fb" : "#fdf1e4",
-  };
 }

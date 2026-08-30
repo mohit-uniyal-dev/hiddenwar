@@ -85,6 +85,11 @@ export function Board({
           key={k}
           className={classes}
           disabled={!canInteract}
+          aria-label={
+            unit === undefined
+              ? `Row ${row + 1}, column ${col + 1}`
+              : `${UNITS[unit.type].name}, row ${row + 1}, column ${col + 1}`
+          }
           onMouseEnter={() => onTileEnter?.(row, col)}
           onFocus={() => onTileEnter?.(row, col)}
           onMouseLeave={() => onTileLeave?.()}
@@ -125,6 +130,9 @@ export function Board({
       onMouseLeave={() => onTileLeave?.()}
     >
       {tiles}
+      <span className="zone-stamp zone-stamp-b">Orange territory</span>
+      <span className="zone-stamp zone-stamp-nml">No man's land</span>
+      <span className="zone-stamp zone-stamp-a">Blue territory</span>
       <div
         className="front-line"
         style={{ top: `calc(var(--tile) * ${BOARD.noMansLandRows[0]})` }}

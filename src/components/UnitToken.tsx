@@ -1,27 +1,5 @@
 import type { Direction, Team, UnitTypeId } from "../game/types.ts";
-
-/**
- * Shape coding, not colour coding.
- *
- * Every unit must be identifiable by glyph and silhouette alone, so colour is
- * never the only channel carrying meaning (§E.6). This also means the board
- * still reads correctly in greyscale.
- */
-export const GLYPH: Record<UnitTypeId, string> = {
-  soldier: "●",
-  mg: "▲",
-  tank: "■",
-  mortar: "◆",
-  sandbag: "▬",
-  hq: "★",
-};
-
-const CHEVRON: Record<Direction, string> = {
-  N: "▲",
-  E: "▶",
-  S: "▼",
-  W: "◀",
-};
+import { UnitIcon } from "./UnitIcon.tsx";
 
 interface Props {
   type: UnitTypeId;
@@ -51,6 +29,7 @@ export function UnitToken({
   const classes = [
     "unit",
     `team-${team}`,
+    `type-${type}`,
     type === "hq" ? "hq" : "",
     type === "sandbag" ? "structure" : "",
     destroyed ? "destroyed" : "",
@@ -64,9 +43,23 @@ export function UnitToken({
   const barClass = hpFraction < 0.3 ? "critical" : hpFraction < 0.6 ? "low" : "";
 
   return (
-    <div className={classes} onClick={onClick} role={onClick ? "button" : undefined}>
-      {GLYPH[type]}
-      {showFacing && !isStructure && <span className={`facing ${facing}`}>{CHEVRON[facing]}</span>}
+    <div
+      className={classes}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      aria-label={onClick ? type : undefined}
+    >
+      <span className="unit-art">
+        <UnitIcon type={type} />
+      </span>
+      {showFacing && !isStructure && (
+        <span className={`facing ${facing}`} aria-hidden="true">
+          <svg viewBox="0 0 16 12">
+            <title>Facing direction</title>
+            <path d="M2 10 8 3l6 7" />
+          </svg>
+        </span>
+      )}
       {hpFraction < 1 && !destroyed && (
         <span className="hpbar">
           <i className={barClass} style={{ width: `${Math.max(0, hpFraction) * 100}%` }} />

@@ -7,20 +7,22 @@
  */
 
 :root {
-  --paper: #d9cdb4;
-  --paper-dark: #c8b995;
-  --paper-line: #a89877;
-  --board-edge: #6f5f45;
-  --nml: #b9a882;
+  --paper: #e6d9bd;
+  --paper-dark: #ccbd98;
+  --paper-line: #aa9873;
+  --board-edge: #574b36;
+  --nml: #b5a37d;
 
   --ink: #2c2418;
   --ink-soft: #5d503c;
   --ink-faint: #8a7c64;
 
-  --team-a: #1d5f9e;
-  --team-a-bright: #2f86d8;
-  --team-b: #c2661a;
-  --team-b-bright: #e8912f;
+  --team-a: #185c96;
+  --team-a-dark: #10436f;
+  --team-a-bright: #3d96dc;
+  --team-b: #bd5c19;
+  --team-b-dark: #843b10;
+  --team-b-bright: #eb8c37;
 
   --ok: #4a7c2f;
   --warn: #a8341f;
@@ -30,7 +32,7 @@
   --arc-blocked: rgba(120, 110, 95, 0.22);
 
   --tile: clamp(30px, 6.2vh, 58px);
-  --radius: 3px;
+  --radius: 7px;
 
   --font: "Barlow Condensed", "Oswald", "Arial Narrow", system-ui, sans-serif;
   --mono: "JetBrains Mono", "Consolas", ui-monospace, monospace;
@@ -51,7 +53,10 @@ body,
 
 body {
   font-family: var(--font);
-  background: radial-gradient(ellipse at 50% 0%, #6b6250 0%, #464032 60%, #35301f 100%);
+  background: radial-gradient(circle at 15% 12%, rgba(236, 210, 150, 0.12), transparent 24rem),
+    radial-gradient(circle at 84% 80%, rgba(17, 38, 27, 0.22), transparent 32rem),
+    repeating-linear-gradient(90deg, transparent 0 79px, rgba(255, 255, 255, 0.015) 80px),
+    linear-gradient(145deg, #615b4d 0%, #403d32 52%, #292a22 100%);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
 }
@@ -67,7 +72,7 @@ button {
   border-radius: var(--radius);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  transition: background 120ms, transform 80ms, box-shadow 120ms;
+  transition: background 120ms, transform 80ms, box-shadow 120ms, border-color 120ms;
 }
 
 button:hover:not(:disabled) {
@@ -86,10 +91,11 @@ button:disabled {
 }
 
 button.primary {
-  background: var(--ok);
-  border-color: #35591f;
+  background: linear-gradient(#578c38, #3f7127);
+  border-color: #31551e;
   color: #f3efe2;
-  font-weight: 600;
+  font-weight: 700;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.18), 0 2px 0 #2e4f1c;
 }
 
 button.primary:hover:not(:disabled) {
@@ -109,13 +115,13 @@ button.danger {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: 1.25rem;
   gap: 1rem;
 }
 
 .screen {
   display: flex;
-  gap: 1.5rem;
+  gap: 1.25rem;
   align-items: flex-start;
   max-width: 1200px;
   width: 100%;
@@ -123,11 +129,12 @@ button.danger {
 }
 
 .panel {
-  background: var(--paper);
-  border: 1px solid var(--board-edge);
+  background: radial-gradient(circle at 100% 0, rgba(255, 255, 255, 0.24), transparent 13rem),
+    linear-gradient(135deg, #eadfc7, var(--paper));
+  border: 1px solid #716146;
   border-radius: var(--radius);
   padding: 1rem;
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38), inset 0 0 0 1px rgba(255, 255, 255, 0.32);
 }
 
 .panel h2 {
@@ -175,22 +182,78 @@ button.danger {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.65rem;
+}
+
+.battlefield-heading {
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #f6edda;
+  padding: 0 0.2rem;
+}
+
+.battlefield-heading small,
+.army-heading small {
+  display: block;
+  font-size: 0.62rem;
+  line-height: 1;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  opacity: 0.68;
+  margin-bottom: 0.25rem;
+}
+
+.battlefield-heading strong {
+  display: block;
+  font-size: 1.12rem;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.battlefield-heading.team-A strong {
+  color: #9ed0fa;
+}
+
+.battlefield-heading.team-B strong {
+  color: #ffc086;
+}
+
+.battlefield-objective {
+  color: #d6cbb4;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+.battlefield-objective b {
+  color: #f1dfad;
+  font-size: 0.62rem;
+  letter-spacing: 0.13em;
+  margin-right: 0.35rem;
+  text-transform: uppercase;
 }
 
 .board {
   display: grid;
   /* grid-template-* is set inline from BOARD in Board.tsx */
   background: var(--paper);
-  border: 3px solid var(--board-edge);
-  border-radius: var(--radius);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 0 60px rgba(120, 100, 60, 0.25);
+  border: 5px solid var(--board-edge);
+  border-radius: 5px;
+  outline: 1px solid rgba(223, 204, 163, 0.46);
+  outline-offset: -3px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5), 0 3px 0 #30291d, inset 0 0 60px
+    rgba(120, 100, 60, 0.25);
   position: relative;
+  isolation: isolate;
+  overflow: hidden;
 }
 
 .tile {
-  border-right: 1px solid rgba(168, 152, 119, 0.45);
-  border-bottom: 1px solid rgba(168, 152, 119, 0.45);
+  border-right: 1px solid rgba(118, 101, 72, 0.36);
+  border-bottom: 1px solid rgba(118, 101, 72, 0.36);
   position: relative;
   display: flex;
   align-items: center;
@@ -208,27 +271,36 @@ button.danger {
   box-shadow: none;
 }
 
+/* Board tiles use disabled for interaction gating, not for visual de-emphasis. */
+.tile:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
 .tile.zone-a {
-  background: rgba(29, 95, 158, 0.06);
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.09), transparent 72%),
+    rgba(29, 95, 158, 0.08);
 }
 
 .tile.zone-b {
-  background: rgba(194, 102, 26, 0.06);
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.09), transparent 72%),
+    rgba(194, 102, 26, 0.08);
 }
 
 .tile.nml {
-  background: repeating-linear-gradient(
-    45deg,
-    var(--nml),
-    var(--nml) 6px,
-    var(--paper-dark) 6px,
-    var(--paper-dark) 12px
-  );
+  background: linear-gradient(rgba(72, 64, 47, 0.08), rgba(72, 64, 47, 0.08)),
+    repeating-linear-gradient(
+      45deg,
+      var(--nml),
+      var(--nml) 7px,
+      var(--paper-dark) 7px,
+      var(--paper-dark) 14px
+    );
 }
 
 .tile.placeable {
-  outline: 1px dashed rgba(74, 124, 47, 0.7);
-  outline-offset: -3px;
+  outline: 1px dashed rgba(49, 96, 44, 0.62);
+  outline-offset: -4px;
   cursor: pointer;
 }
 
@@ -237,7 +309,8 @@ button.danger {
 }
 
 .tile.hovered.placeable {
-  background: rgba(74, 124, 47, 0.28);
+  background: rgba(104, 155, 70, 0.3);
+  box-shadow: inset 0 0 0 3px rgba(246, 228, 166, 0.6);
 }
 
 .tile.hovered.illegal {
@@ -277,55 +350,145 @@ button.danger {
   left: 0;
   right: 0;
   height: 0;
-  border-top: 2px dashed rgba(90, 76, 50, 0.55);
+  border-top: 2px dashed rgba(72, 59, 37, 0.65);
   pointer-events: none;
+  z-index: 3;
+}
+
+.zone-stamp {
+  position: absolute;
+  left: 0.5rem;
+  z-index: 1;
+  pointer-events: none;
+  font-size: clamp(0.42rem, calc(var(--tile) * 0.12), 0.58rem);
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.22;
+  writing-mode: vertical-rl;
+}
+
+.zone-stamp-b {
+  top: 0.5rem;
+  color: var(--team-b-dark);
+}
+
+.zone-stamp-a {
+  bottom: 0.5rem;
+  color: var(--team-a-dark);
+  transform: rotate(180deg);
+}
+
+.zone-stamp-nml {
+  left: 50%;
+  top: calc(var(--tile) * 4 + var(--tile) / 2);
+  transform: translate(-50%, -50%);
+  writing-mode: horizontal-tb;
+  color: #493c28;
+  opacity: 0.38;
 }
 
 /* ----------------------------------------------------------------- units */
 
 .unit {
   position: absolute;
-  inset: 2px;
+  inset: 1px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 2px;
-  font-size: calc(var(--tile) * 0.5);
   line-height: 1;
   font-weight: 700;
   user-select: none;
-  border: 1.5px solid rgba(0, 0, 0, 0.35);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  transition: opacity 200ms, filter 200ms;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  transition: opacity 200ms, filter 200ms, transform 120ms;
+  z-index: 2;
 }
 
 .unit.team-A {
-  background: var(--team-a);
-  color: #eaf2fb;
+  background: transparent;
+  color: var(--team-a);
 }
 
 .unit.team-B {
-  background: var(--team-b);
-  color: #fdf1e4;
+  background: transparent;
+  color: var(--team-b);
+}
+
+.unit-art {
+  width: 76%;
+  height: 76%;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 1px 0 rgba(255, 250, 228, 0.9))
+    drop-shadow(0 2px 1px rgba(44, 34, 20, 0.48));
+  pointer-events: none;
+}
+
+.unit.type-mg .unit-art,
+.unit.type-tank .unit-art {
+  width: 82%;
+  height: 82%;
+}
+
+.unit.type-mortar .unit-art {
+  width: 78%;
+  height: 82%;
+}
+
+.unit-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.unit-icon .icon-detail {
+  fill: rgba(27, 31, 30, 0.34);
+}
+
+.unit-icon .icon-seam {
+  opacity: 0.35;
 }
 
 /* Structures read as flat slabs, not tokens — shape coding (§E.6) */
 .unit.structure {
-  inset: 4px 1px;
-  border-radius: 1px;
-  font-size: calc(var(--tile) * 0.34);
+  inset: 1px;
+}
+
+.unit.structure .unit-art {
+  width: 92%;
+  height: 92%;
 }
 
 .unit.hq {
-  inset: 2px;
-  font-size: calc(var(--tile) * 0.5);
-  letter-spacing: 0.05em;
+  inset: 3px;
+  border: 1.5px dashed currentColor;
+  border-radius: 8px;
+  opacity: 0.92;
+}
+
+.unit.hq .unit-art {
+  width: 62%;
+  height: 62%;
 }
 
 .unit.selected {
-  outline: 2px solid #f6e27a;
-  outline-offset: 1px;
+  outline: 0;
+  transform: translateY(-2px) scale(1.08);
   z-index: 4;
+}
+
+.unit.selected::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border: 2px dashed #b88b20;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(255, 240, 168, 0.62);
+  pointer-events: none;
 }
 
 .unit.damaged {
@@ -337,7 +500,7 @@ button.danger {
 }
 
 .unit.destroyed {
-  opacity: 0.16;
+  opacity: 0.2;
   filter: grayscale(1);
 }
 
@@ -357,33 +520,54 @@ button.danger {
 /* Facing chevron — the second, non-colour channel for direction */
 .facing {
   position: absolute;
-  font-size: calc(var(--tile) * 0.3);
-  opacity: 0.9;
-  line-height: 1;
+  width: calc(var(--tile) * 0.3);
+  height: calc(var(--tile) * 0.22);
+  display: grid;
+  place-items: center;
+  opacity: 0.95;
   pointer-events: none;
+  filter: drop-shadow(0 1px 0 #fff4d9) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.48));
+}
+
+.facing svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.facing path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .facing.N {
-  top: -1px;
+  top: -2px;
 }
 .facing.S {
-  bottom: -1px;
+  bottom: -2px;
+  transform: rotate(180deg);
 }
 .facing.E {
-  right: 0;
+  right: -3px;
+  transform: rotate(90deg);
 }
 .facing.W {
-  left: 0;
+  left: -3px;
+  transform: rotate(-90deg);
 }
 
 .hpbar {
   position: absolute;
-  left: 2px;
-  right: 2px;
-  bottom: -1px;
-  height: 3px;
+  left: 7px;
+  right: 7px;
+  bottom: 1px;
+  height: 4px;
   background: rgba(0, 0, 0, 0.35);
-  border-radius: 1px;
+  border: 1px solid rgba(255, 250, 228, 0.7);
+  border-radius: 999px;
   overflow: hidden;
 }
 
@@ -405,35 +589,128 @@ button.danger {
 /* ------------------------------------------------------------- army panel */
 
 .army {
-  min-width: 230px;
+  width: 282px;
+  min-width: 282px;
+  position: relative;
+  overflow: hidden;
+}
+
+.army::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: var(--team-a);
+}
+
+.army.team-B::before {
+  background: var(--team-b);
+}
+
+.army-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.6rem;
+  border-bottom: 1px solid var(--paper-line);
+}
+
+.army-insignia {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  border-radius: 50%;
+  background: var(--team-a);
+  color: #edf6ff;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 0 1px var(--team-a-dark), 0 2px 3px rgba(0, 0, 0, 0.25);
+}
+
+.army.team-B .army-insignia {
+  background: var(--team-b);
+  box-shadow: 0 0 0 1px var(--team-b-dark), 0 2px 3px rgba(0, 0, 0, 0.25);
+}
+
+.army-heading-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.army-heading-copy h2 {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-size: 1.12rem;
+}
+
+.roster-status {
+  padding: 0.3rem 0.42rem;
+  border: 1px solid var(--paper-line);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.25);
+  font-family: var(--mono);
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.roster-status.ready {
+  background: rgba(74, 124, 47, 0.14);
+  border-color: rgba(74, 124, 47, 0.55);
+  color: #3f6e29;
+}
+
+.panel-lead {
+  margin: 0 0 0.65rem;
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+  line-height: 1.35;
 }
 
 .army-row {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.7rem;
   width: 100%;
-  padding: 0.4rem 0.5rem;
-  margin-bottom: 0.25rem;
-  border: 1px solid transparent;
-  background: transparent;
+  min-height: 51px;
+  padding: 0.35rem 0.45rem;
+  margin-bottom: 0.3rem;
+  border: 1px solid rgba(119, 101, 72, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
   text-transform: none;
   letter-spacing: normal;
   justify-content: flex-start;
 }
 
 .army-row:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.06);
-  box-shadow: none;
+  background: rgba(255, 255, 255, 0.38);
+  border-color: rgba(91, 76, 52, 0.38);
+  box-shadow: 0 2px 5px rgba(65, 49, 28, 0.12);
+  transform: translateY(-1px);
 }
 
 .army-row.active {
-  border-color: var(--ink-soft);
-  background: rgba(246, 226, 122, 0.4);
+  border-color: #8f702c;
+  background: linear-gradient(90deg, rgba(255, 230, 118, 0.48), rgba(255, 247, 208, 0.32));
+  box-shadow: inset 3px 0 #d1a832, 0 2px 5px rgba(65, 49, 28, 0.12);
 }
 
 .army-row.done {
-  opacity: 0.4;
+  opacity: 0.58;
+}
+
+.army-row:disabled {
+  opacity: 0.58;
+  cursor: default;
 }
 
 .chip {
@@ -448,15 +725,49 @@ button.danger {
   border: 1px solid rgba(0, 0, 0, 0.35);
 }
 
+.unit-chip {
+  width: 38px;
+  height: 38px;
+  flex-basis: 38px;
+  padding: 6px;
+  border-radius: 6px;
+  color: #edf6ff;
+  background: linear-gradient(145deg, var(--team-a-bright), var(--team-a-dark));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.28), 0 2px 3px rgba(0, 0, 0, 0.2);
+}
+
+.unit-chip.team-B {
+  color: #fff2df;
+  background: linear-gradient(145deg, var(--team-b-bright), var(--team-b-dark));
+}
+
 .army-row .name {
   flex: 1;
   text-align: left;
-  font-size: 0.95rem;
+  font-size: 0.93rem;
+  font-weight: 700;
+  line-height: 1.08;
+}
+
+.army-row .name em {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.63rem;
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  color: var(--ink-faint);
 }
 
 .army-row .count {
   font-family: var(--mono);
-  font-size: 0.85rem;
+  min-width: 28px;
+  padding: 0.2rem 0.3rem;
+  border-radius: 999px;
+  background: rgba(79, 65, 43, 0.08);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-align: center;
   color: var(--ink-soft);
 }
 
@@ -500,6 +811,11 @@ button.danger {
   flex: 1;
   font-size: 0.75rem;
   padding: 0.45rem 0.5rem;
+}
+
+.army > .row-actions:last-of-type .primary {
+  min-height: 38px;
+  letter-spacing: 0.1em;
 }
 
 /* ------------------------------------------------------------ battle HUD */
@@ -670,6 +986,24 @@ table.report-table td {
   padding: 0.22rem 0.35rem;
   border-bottom: 1px solid rgba(168, 152, 119, 0.3);
   text-align: right;
+}
+
+.report-unit-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  padding: 3px;
+  margin-right: 0.2rem;
+  border-radius: 4px;
+  color: #edf6ff;
+  background: var(--team-a);
+  vertical-align: middle;
+}
+
+.report-unit-icon.team-B {
+  color: #fff2df;
+  background: var(--team-b);
 }
 
 table.report-table tr.dead td {
@@ -852,10 +1186,10 @@ table.report-table tr.dead td {
 .army-row .name em {
   display: block;
   font-style: normal;
-  font-size: 0.72rem;
+  font-size: 0.63rem;
   color: var(--ink-faint);
-  line-height: 1.35;
-  margin-top: 0.1rem;
+  line-height: 1.1;
+  margin-top: 0.2rem;
 }
 
 .chip.puzzle-chip {
@@ -1042,4 +1376,46 @@ ul.objectives li.fail {
 /* Single-mode menu: keep the one panel from stretching across the page. */
 .menu.menu-single {
   max-width: 34rem;
+}
+
+@media (max-width: 960px) {
+  :root {
+    --tile: clamp(27px, 5.4vw, 50px);
+  }
+
+  .app {
+    height: auto;
+    min-height: 100%;
+    justify-content: flex-start;
+  }
+
+  .screen {
+    flex-wrap: wrap;
+  }
+
+  .army {
+    width: min(calc(var(--tile) * 12 + 10px), 100%);
+  }
+}
+
+@media (max-width: 620px) {
+  .app {
+    padding: 0.75rem 0.35rem;
+  }
+
+  .battlefield-heading {
+    padding-inline: 0.35rem;
+  }
+
+  .battlefield-objective {
+    display: none;
+  }
+
+  .zone-stamp {
+    display: none;
+  }
+
+  .board-note {
+    padding-inline: 1rem;
+  }
 }
