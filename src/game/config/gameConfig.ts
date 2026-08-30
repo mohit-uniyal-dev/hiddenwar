@@ -3,7 +3,9 @@
  * Roadmap Part I §B.0, §B.1, §B.3, §B.8.
  */
 
-export const CONFIG_VERSION = "1.0.0";
+import { mulberry32 } from "../rng/mulberry32.ts";
+
+export const CONFIG_VERSION = "1.1.0";
 
 export const TICKS_PER_SECOND = 20;
 
@@ -42,22 +44,43 @@ export const BOARD = {
   teamARows: [5, 8] as const,
 } as const;
 
+/** The HQ footprint. */
+export const HQ_SIZE = 2;
+
+export interface HqAnchors {
+  readonly A: { readonly row: number; readonly col: number };
+  readonly B: { readonly row: number; readonly col: number };
+}
+
 /**
- * Where each side's HQ stands. Fixed, automatic, and visible to both players.
+ * Both HQs stand on the rear rank of their own zone, in a COLUMN drawn per
+ * match — the same column for both sides, so the two objectives are exact
+ * mirrors and neither player gets an easier problem.
  *
- * Guessing the HQ's location was never the interesting hidden information —
- * guessing the enemy's LANES and FACINGS is. Publishing both objectives turns
- * every match into "attack this point, defend that one", which makes a sandbag
- * wall a readable decision instead of a hedge against an unknown, and gives the
- * attacker a concrete problem to solve.
+ * Why the column and not the row: which lane you must force, and which lane you
+ * must hold, is the decision that actually changes between matches. Varying the
+ * depth would mostly change how long the battle takes. Keeping the rank fixed
+ * also leaves the rear rows free of anything else, which is what lets stored
+ * bot formations adapt to the drawn position instead of breaking on it.
  *
- * Centre-rear on both sides, mirrored across the midline. Both are inside enemy
- * tank range from the front rank (asserted in reachability.test.ts).
+ * This is §41's prescribed answer to solved formations: map variety, not dice.
+ * The draw is seeded, so a match remains fully reproducible from its seed, and
+ * the store holds it steady across a rematch so edit-and-rerun still works.
  */
-export const HQ_ANCHOR = {
+export function hqAnchorsForSeed(seed: number): HqAnchors {
+  const rng = mulberry32(seed);
+  const col = rng.nextInt(BOARD.cols - HQ_SIZE + 1);
+  return {
+    A: { row: BOARD.teamARows[1] - HQ_SIZE + 1, col },
+    B: { row: BOARD.teamBRows[0], col },
+  };
+}
+
+/** The centre position, used by hand-authored puzzles and as a fallback. */
+export const HQ_ANCHOR: HqAnchors = {
   A: { row: 7, col: 5 },
   B: { row: 0, col: 5 },
-} as const;
+};
 
 export const RULES = {
   /** Hard cap: 1,200 ticks = 60 seconds (§B.3). */

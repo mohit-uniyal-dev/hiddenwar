@@ -20,7 +20,7 @@ pnpm dev          # http://localhost:5173
 | --- | --- |
 | `pnpm dev` | Vite dev server |
 | `pnpm build` | Typecheck + production bundle into `dist/` |
-| `pnpm test` | Vitest, 110 tests |
+| `pnpm test` | Vitest, 114 tests |
 | `pnpm test:watch` | Vitest in watch mode |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm lint` | Biome |
@@ -34,9 +34,9 @@ Three modes, all playable:
 
 | Mode | What it is |
 | --- | --- |
-| **Puzzles** | 5 setups with a *visible* enemy and a small kit. A deliberate curriculum: facing → cones → cover → artillery → reach. Doubles as the tutorial. |
-| **Single player** | 3 handcrafted bot formations (Easy/Medium). Their formation stays hidden until the reveal, same as a human's. |
-| **Hotseat** | Two players, one device, secret deployment both ways. |
+| **Hotseat** | Two players, one device, secret deployment both ways. **The only mode currently surfaced.** |
+| *Puzzles* | 5 setups with a *visible* enemy and a small kit — a curriculum from facing through cones, cover and artillery. Built and tested; hidden behind `SHOW_PUZZLES` in [App.tsx](src/App.tsx) while hotseat is the playtest focus. |
+| *Single player* | 3 handcrafted bot formations (Easy/Medium). Built and tested; hidden behind `SHOW_BOTS`. |
 
 The full loop from §F.2 of the roadmap:
 
@@ -46,7 +46,7 @@ Home  →  Blue deploys  →  hand off  →  Orange deploys  →  reveal + 3-2-1
 ```
 
 - **Deployment** — click to place, `R` to rotate, `Esc` to deselect, click a placed unit to rotate or remove it. Auto-fill and clear for fast iteration.
-- **Both HQs are automatic and public.** Neither player positions their own; both stand at a published centre-rear anchor and are visible from the start. You place 18 units, not 19. Guessing the HQ's location was never the interesting hidden information — guessing lanes and facings is.
+- **Both HQs are automatic, public, and drawn fresh each match.** Neither player positions their own; both stand on their rear rank in the same column, mirrored, visible from the start. You place 18 units, not 19. Guessing the HQ's location was never the interesting hidden information — guessing lanes and facings is. The draw is seeded and held steady across a rematch, so each match poses a different problem while edit-and-rerun still works.
 - **Arc preview with LOS shadowing** — solid marks are tiles the unit can hit; faded marks are shadowed by *your own* cover. Shown as a ghost under the cursor before you commit.
 - **Battle playback** — tracers, shell arcs, explosions, health bars, damage states, a live army-strength bar, pause / 0.5× / 1× / 2× / restart, and exactly one slow-motion moment (the shot that kills an HQ).
 - **Battle report** — per-unit damage, kills and idle time, auto-generated tactical observations, and the two health metrics from §D.2.

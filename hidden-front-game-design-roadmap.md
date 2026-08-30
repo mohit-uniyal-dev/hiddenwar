@@ -200,14 +200,27 @@ Ready is irreversible.
 
 ### The HQ is placed automatically, and both are public
 
-**Neither player positions their HQ.** It stands at a published anchor —
-centre-rear, mirrored — and both sides can see both from the moment deployment
-begins.
+**Neither player positions their HQ.** Both stand on the rear rank of their own
+zone, in a **column drawn fresh each match** — the same column for both sides —
+and both are visible from the moment deployment begins.
 
 ```text
-Player B HQ   rows 1-2, cols 6-7   (displayed)
-Player A HQ   rows 8-9, cols 6-7
+Player B HQ   rows 1-2, columns C..C+1   (displayed)
+Player A HQ   rows 8-9, columns C..C+1
+                        C drawn per match from the match seed
 ```
+
+The draw is mirrored, so the two objectives are exact reflections and neither
+player gets the easier problem. It is seeded, so a match stays reproducible from
+one number — battlefield and battle alike. And it is **held steady across a
+rematch**: a rematch is the same battlefield with your formation reloaded, which
+is the entire point of edit-and-rerun (§D.2).
+
+**Why the column and not the row.** Which lane you must force, and which lane
+you must hold, is the decision that actually changes between matches. Varying
+the depth would mostly change how long the battle takes. Fixing the rank also
+leaves the rear rows clear of everything else, which is what lets a stored
+formation adapt to the drawn position instead of breaking on it.
 
 **Why.** Guessing *where* the HQ is was never the interesting hidden
 information; guessing the enemy's **lanes and facings** is. Publishing both
@@ -227,10 +240,17 @@ Consequences:
   over.
 - Puzzles may pre-place other pieces too, via a scenario's `fixed` list.
 
-> **Watch item (§41).** A single fixed anchor means the same objective geometry
-> every match, which raises the odds of a solved formation. The natural answer
-> if that happens is a seeded, mirrored anchor drawn per match and held stable
-> across rematches — map variety rather than dice, exactly as §41 prescribes.
+> **This is §41's prescribed answer to solved formations: map variety, not
+> dice.** A single fixed anchor would give every match the same objective
+> geometry and invite one memorised optimum. Drawing the column removes that
+> without adding a grain of combat randomness — the simulation stays fully
+> deterministic (§B.8.1).
+
+**Stored formations carry their own position.** A bot formation — and, later, a
+harvested player formation (§E.4) — was built around the HQ it was protecting,
+so it keeps that position and the human mirrors it. Anything else would wall a
+bot's sandbags around empty ground. Puzzles likewise keep the position their
+author designed them for.
 
 ### Why no placement rule is needed
 

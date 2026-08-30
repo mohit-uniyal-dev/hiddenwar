@@ -6,7 +6,7 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { HQ_ANCHOR } from "../game/config/gameConfig.ts";
+import { BOARD, hqAnchorsForSeed, zoneOwner } from "../game/config/gameConfig.ts";
 import { evaluatePuzzle, puzzleById } from "../game/content/puzzles.ts";
 import { arcPreview } from "../game/engine/preview.ts";
 import { simulateBattle } from "../game/engine/simulate.ts";
@@ -24,14 +24,55 @@ describe("hotseat flow", () => {
   it("starts on the deployment screen as Blue, HQ already standing", () => {
     expect(store().phase).toBe("deploy");
     expect(store().activeTeam).toBe("A");
-    // The HQ is placed automatically at a published anchor — the player never
-    // positions it, and both sides can see both.
-    expect(store().deployments.A.units).toEqual([
-      { type: "hq", row: HQ_ANCHOR.A.row, col: HQ_ANCHOR.A.col, facing: "N" },
-    ]);
-    expect(store().deployments.B.units).toEqual([
-      { type: "hq", row: HQ_ANCHOR.B.row, col: HQ_ANCHOR.B.col, facing: "N" },
-    ]);
+    // The HQ is placed automatically — the player never positions it.
+    expect(store().deployments.A.units).toHaveLength(1);
+    expect(store().deployments.A.units[0]?.type).toBe("hq");
+    expect(store().deployments.B.units[0]?.type).toBe("hq");
+  });
+
+  it("draws a MIRRORED HQ position, so neither side gets the easier problem", () => {
+    const { hqAnchors } = store();
+    expect(hqAnchors.A.col).toBe(hqAnchors.B.col);
+    // Rear rank of each zone, mirrored across the midline.
+    expect(hqAnchors.B.row).toBe(BOARD.teamBRows[0]);
+    expect(hqAnchors.A.row).toBe(BOARD.teamARows[1] - 1);
+    expect(store().deployments.A.units[0]).toMatchObject(hqAnchors.A);
+    expect(store().deployments.B.units[0]).toMatchObject(hqAnchors.B);
+  });
+
+  it("keeps the HQ inside the board for every possible draw", () => {
+    for (let seed = 0; seed < 500; seed++) {
+      const a = hqAnchorsForSeed(seed);
+      expect(a.A.col).toBeGreaterThanOrEqual(0);
+      expect(a.A.col).toBeLessThanOrEqual(BOARD.cols - 2);
+      expect(a.A.col).toBe(a.B.col);
+      expect(zoneOwner(a.A.row)).toBe("A");
+      expect(zoneOwner(a.A.row + 1)).toBe("A");
+      expect(zoneOwner(a.B.row)).toBe("B");
+      expect(zoneOwner(a.B.row + 1)).toBe("B");
+    }
+  });
+
+  it("varies the column across matches", () => {
+    const seen = new Set<number>();
+    for (let seed = 0; seed < 200; seed++) seen.add(hqAnchorsForSeed(seed).A.col);
+    // The whole point is that the lane you must force changes between matches.
+    expect(seen.size).toBeGreaterThan(5);
+  });
+
+  it("holds the drawn position steady across a rematch", () => {
+    const before = store().hqAnchors;
+    store().autoFill();
+    store().ready();
+    store().proceedToDeploy();
+    store().autoFill();
+    store().ready();
+    store().finish();
+    store().rematch();
+    // A rematch is the same battlefield with your formation reloaded — moving
+    // the objective would break edit-and-rerun (§D.2).
+    expect(store().hqAnchors).toEqual(before);
+    expect(store().deployments.A.units[0]).toMatchObject(before.A);
   });
 
   it("does not hand the player an HQ to place", () => {
@@ -45,11 +86,12 @@ describe("hotseat flow", () => {
 
   it("refuses to remove or overwrite the HQ", () => {
     const before = store().deployments.A.units;
+    const anchor = store().hqAnchors.A;
     store().removeAt(0);
     expect(store().deployments.A.units).toEqual(before);
 
     store().selectType("soldier");
-    store().place(HQ_ANCHOR.A.row, HQ_ANCHOR.A.col);
+    store().place(anchor.row, anchor.col);
     expect(store().deployments.A.units).toEqual(before);
   });
 

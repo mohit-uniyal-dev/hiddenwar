@@ -1038,3 +1038,8 @@ ul.objectives li.fail {
   font-family: var(--mono);
   font-weight: 600;
 }
+
+/* Single-mode menu: keep the one panel from stretching across the page. */
+.menu.menu-single {
+  max-width: 34rem;
+}

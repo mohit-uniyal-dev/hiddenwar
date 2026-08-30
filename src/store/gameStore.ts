@@ -5,7 +5,13 @@
  */
 
 import { create } from "zustand";
-import { HQ_ANCHOR } from "../game/config/gameConfig.ts";
+import {
+  BOARD,
+  HQ_ANCHOR,
+  HQ_SIZE,
+  type HqAnchors,
+  hqAnchorsForSeed,
+} from "../game/config/gameConfig.ts";
 import { MVP_ARMY, PLACEABLE_ARMY, type Roster, UNITS } from "../game/config/units.ts";
 import { botById } from "../game/content/bots.ts";
 import { type Puzzle, puzzleById } from "../game/content/puzzles.ts";
@@ -21,6 +27,12 @@ interface GameState {
   mode: Mode;
   botId: string | null;
   puzzleId: string | null;
+  /**
+   * Drawn once per match and held steady across rematches, so the HQ column
+   * varies between matches but edit-and-rerun still works (§D.2).
+   */
+  matchSeed: number;
+  hqAnchors: HqAnchors;
 
   /** Whose deployment screen is showing. Always "A" outside hotseat. */
   activeTeam: Team;
@@ -68,9 +80,27 @@ function remaining(deployment: Deployment, kit: Roster): Map<UnitTypeId, number>
 }
 
 /** A deployment seeded with the automatic HQ, ready for the player to build on. */
-function withHq(team: Team): Deployment {
-  const anchor = HQ_ANCHOR[team];
+function withHq(team: Team, anchors: HqAnchors): Deployment {
+  const anchor = anchors[team];
   return { team, units: [{ type: "hq", row: anchor.row, col: anchor.col, facing: "N" }] };
+}
+
+function newSeed(): number {
+  return (Date.now() & 0x7fffffff) >>> 0;
+}
+
+/**
+ * A stored formation carries the HQ position it was built around, so the human
+ * mirrors the bot rather than the other way round. Anything else would wall a
+ * bot's sandbags around empty ground.
+ */
+function anchorsFromBotDeployment(deployment: Deployment): HqAnchors {
+  const hq = deployment.units.find((unit) => unit.type === "hq");
+  if (hq === undefined) return HQ_ANCHOR;
+  return {
+    A: { row: BOARD.rows - HQ_SIZE - hq.row, col: hq.col },
+    B: { row: hq.row, col: hq.col },
+  };
 }
 
 export function remainingFor(deployment: Deployment, kit: Roster = MVP_ARMY) {
@@ -115,34 +145,46 @@ export const useGame = create<GameState>((set, get) => ({
   botId: null,
   puzzleId: null,
   activeTeam: "A",
+  matchSeed: 0,
+  hqAnchors: HQ_ANCHOR,
   deployments: { A: emptyDeployment("A"), B: emptyDeployment("B") },
   lastFormation: { A: null, B: null },
   ...FRESH,
 
-  startHotseat: () =>
+  startHotseat: () => {
+    // A fresh draw each match: which lane you must force, and which you must
+    // hold, changes every time (§41 — map variety, not dice).
+    const matchSeed = newSeed();
+    const hqAnchors = hqAnchorsForSeed(matchSeed);
     set({
       phase: "deploy",
       mode: "hotseat",
       botId: null,
       puzzleId: null,
       activeTeam: "A",
-      deployments: { A: withHq("A"), B: withHq("B") },
+      matchSeed,
+      hqAnchors,
+      deployments: { A: withHq("A", hqAnchors), B: withHq("B", hqAnchors) },
       lastFormation: { A: null, B: null },
       ...FRESH,
-    }),
+    });
+  },
 
   startBot: (botId) => {
     const bot = botById(botId);
     if (bot === undefined) return;
+    const hqAnchors = anchorsFromBotDeployment(bot.deployment);
     set({
       phase: "deploy",
       mode: "bot",
       botId,
       puzzleId: null,
       activeTeam: "A",
+      matchSeed: newSeed(),
+      hqAnchors,
       // The bot's formation is loaded now but stays hidden until the reveal —
-      // except its HQ, which is public and stands at the published anchor.
-      deployments: { A: withHq("A"), B: bot.deployment },
+      // except its HQ, which is public.
+      deployments: { A: withHq("A", hqAnchors), B: bot.deployment },
       lastFormation: { A: null, B: null },
       ...FRESH,
     });
@@ -157,6 +199,9 @@ export const useGame = create<GameState>((set, get) => ({
       puzzleId,
       botId: null,
       activeTeam: "A",
+      matchSeed: newSeed(),
+      // Puzzles are designed scenarios: their HQ sits where the author put it.
+      hqAnchors: HQ_ANCHOR,
       // A puzzle's enemy is VISIBLE the whole time — that is the point of it.
       // `fixed` holds any pieces the scenario starts you with.
       deployments: { A: { team: "A", units: [...(puzzle.fixed ?? [])] }, B: puzzle.enemy },
@@ -173,14 +218,16 @@ export const useGame = create<GameState>((set, get) => ({
    * impulse that the whole prototype exists to test (§D.2).
    */
   rematch: () => {
-    const { lastFormation, mode, deployments } = get();
+    const { lastFormation, mode, deployments, hqAnchors } = get();
     set({
       phase: "deploy",
       activeTeam: "A",
+      // hqAnchors deliberately untouched: a rematch is the same battlefield
+      // with your formation reloaded, which is the whole point (§D.2).
       deployments: {
-        A: lastFormation.A ?? withHq("A"),
+        A: lastFormation.A ?? withHq("A", hqAnchors),
         // Bots and puzzles keep their fixed formation; hotseat reloads Orange's.
-        B: mode === "hotseat" ? (lastFormation.B ?? withHq("B")) : deployments.B,
+        B: mode === "hotseat" ? (lastFormation.B ?? withHq("B", hqAnchors)) : deployments.B,
       },
       ...FRESH,
     });
@@ -302,8 +349,9 @@ export const useGame = create<GameState>((set, get) => ({
     const result = simulateBattle({
       playerA: deployments.A,
       playerB: deployments.B,
-      // A fresh seed per match. Replays pin it, so any battle is reproducible.
-      seed: (Date.now() & 0x7fffffff) >>> 0,
+      // The same seed that drew the HQ position, so one number reproduces the
+      // whole match — battlefield and battle alike.
+      seed: get().matchSeed,
     });
     set({
       phase: "battle",
