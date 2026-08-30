@@ -200,8 +200,10 @@ describe("hotseat flow", () => {
     store().place(6, 3);
     const index = store().deployments.A.units.findIndex((u) => u.type === "soldier");
 
-    store().moveTo(index, 7, 4);
-    expect(store().deployments.A.units[index]).toMatchObject({ row: 7, col: 4 });
+    // The HQ occupies a random 2×2 footprint on rows 7–8. Row 5 is always
+    // empty here, so this test cannot become seed-dependent in CI.
+    store().moveTo(index, 5, 4);
+    expect(store().deployments.A.units[index]).toMatchObject({ row: 5, col: 4 });
 
     // Facing survives the move — repositioning is not a re-placement.
     expect(store().deployments.A.units[index]?.facing).toBe("N");
