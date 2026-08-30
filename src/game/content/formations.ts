@@ -28,9 +28,11 @@ export type ArchetypeId =
   | "hqrush"
   | "hqguard";
 
-interface Archetype {
+export interface Archetype {
   readonly id: ArchetypeId;
   readonly label: string;
+  /** Shown after the battle: how this shape plays, and where it is weak. */
+  readonly tell: string;
   /** Preferred depths (0 = front rank of your zone, 3 = rear) per unit type. */
   readonly depths: Record<Exclude<UnitTypeId, "hq">, number[]>;
   /** "guard" hugs the HQ with sandbags; "scatter" spreads them. */
@@ -48,30 +50,35 @@ export const ARCHETYPES: readonly Archetype[] = [
   {
     id: "line",
     label: "Front line",
+    tell: "Holds the whole width of the front rank. Solid everywhere, concentrated nowhere — it rarely masses enough force on one lane to finish an objective quickly.",
     depths: { soldier: [0], mg: [0, 1], tank: [1, 0], mortar: [3, 2], sandbag: [1, 2] },
     sandbags: "guard",
   },
   {
     id: "turtle",
     label: "Turtle",
+    tell: "Sits back and waits. Ceding the front rank means most of its army spends the battle out of range of anything.",
     depths: { soldier: [1, 2], mg: [1, 2], tank: [2, 1], mortar: [3], sandbag: [2, 3] },
     sandbags: "guard",
   },
   {
     id: "spread",
     label: "Spread",
+    tell: "Deliberately dispersed to blunt splash. Safe from the mortar, but thin in every individual lane.",
     depths: { soldier: [0, 1, 2], mg: [0, 1], tank: [1, 2], mortar: [2, 3], sandbag: [1, 2, 3] },
     sandbags: "scatter",
   },
   {
     id: "artillery",
     label: "Artillery-heavy",
+    tell: "Leads with the mortar and keeps the rest back. Strong chip damage, but almost nothing contesting the ground in between.",
     depths: { soldier: [0, 1], mg: [1], tank: [2, 3], mortar: [2], sandbag: [0, 1] },
     sandbags: "scatter",
   },
   {
     id: "hqrush",
     label: "HQ rush",
+    tell: "Everything aligned on your HQ's column. Brutal if the lane opens — and it collapses against a defence that concentrates on the same lane.",
     depths: { soldier: [0, 1], mg: [0, 1], tank: [1, 0], mortar: [2, 3], sandbag: [2, 3] },
     sandbags: "scatter",
     columnBias: "enemyHq",
@@ -79,6 +86,7 @@ export const ARCHETYPES: readonly Archetype[] = [
   {
     id: "hqguard",
     label: "HQ lane guard",
+    tell: "Everything massed on its own HQ's column. Nearly unbreakable head-on, but it concedes the rest of the board, so it struggles to reach your objective.",
     depths: { soldier: [0, 1], mg: [0, 1], tank: [1, 2], mortar: [3], sandbag: [1, 2] },
     sandbags: "guard",
     columnBias: "ownHq",
@@ -86,6 +94,7 @@ export const ARCHETYPES: readonly Archetype[] = [
   {
     id: "random",
     label: "Random (control)",
+    tell: "No particular shape at all. Unpredictable, and usually incoherent.",
     depths: {
       soldier: [0, 1, 2, 3],
       mg: [0, 1, 2, 3],
@@ -202,3 +211,32 @@ export function generateFormation(
 
   return { team, units };
 }
+
+export type Difficulty = "easy" | "medium" | "hard";
+
+/**
+ * Difficulty tiers, drawn from measured head-to-head win rates rather than
+ * guesswork — see `scripts/matrix.ts`. Overall win rate against the full field:
+ *
+ *   turtle 25%   artillery 27%   random 38%
+ *   spread 54%   line 61%        hqguard 63%   hqrush 67%
+ *
+ * So the tiers are not a difficulty slider bolted on top of one AI; they are
+ * genuinely different opponents that happen to be ordered by how well they
+ * actually perform.
+ */
+export const DIFFICULTY_POOLS: Record<Difficulty, readonly ArchetypeId[]> = {
+  easy: ["turtle", "artillery"],
+  medium: ["random", "spread"],
+  hard: ["line", "hqguard", "hqrush"],
+};
+
+export const DIFFICULTIES: ReadonlyArray<{
+  readonly id: Difficulty;
+  readonly label: string;
+  readonly blurb: string;
+}> = [
+  { id: "easy", label: "Recruit", blurb: "Hangs back and lets you dictate the fight." },
+  { id: "medium", label: "Regular", blurb: "Competent, unpredictable shapes." },
+  { id: "hard", label: "Veteran", blurb: "Masses force on a lane and commits to it." },
+];

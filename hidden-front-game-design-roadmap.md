@@ -261,11 +261,9 @@ Consequences:
 > without adding a grain of combat randomness — the simulation stays fully
 > deterministic (§B.8.1).
 
-**Stored formations carry their own position.** A bot formation — and, later, a
-harvested player formation (§E.4) — was built around the HQ it was protecting,
-so it keeps that position and the human mirrors it. Anything else would wall a
-bot's sandbags around empty ground. Puzzles likewise keep the position their
-author designed them for.
+**The AI opponent draws its own column too.** Single-player armies are generated
+per match rather than stored, so they simply build around whatever position the
+draw gives them. Puzzles keep the position their author designed them for.
 
 ### Why no placement rule is needed
 

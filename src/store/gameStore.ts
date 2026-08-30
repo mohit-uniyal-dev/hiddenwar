@@ -7,19 +7,28 @@
 import { create } from "zustand";
 import { HQ_ANCHOR, type HqAnchors, hqAnchorsForSeed } from "../game/config/gameConfig.ts";
 import { MVP_ARMY, PLACEABLE_ARMY, type Roster, UNITS } from "../game/config/units.ts";
-import { botById } from "../game/content/bots.ts";
+import {
+  type ArchetypeId,
+  DIFFICULTY_POOLS,
+  type Difficulty,
+  archetypeById,
+  generateFormation,
+} from "../game/content/formations.ts";
 import { type Puzzle, puzzleById } from "../game/content/puzzles.ts";
 import { type BattleResult, simulateBattle } from "../game/engine/simulate.ts";
 import { canPlace, emptyDeployment, expectedCounts } from "../game/models/deployment.ts";
+import { mulberry32 } from "../game/rng/mulberry32.ts";
 import type { Deployment, Direction, PlacedUnit, Team, UnitTypeId } from "../game/types.ts";
 
 export type Phase = "home" | "deploy" | "handoff" | "battle" | "results";
-export type Mode = "hotseat" | "bot" | "puzzle";
+export type Mode = "hotseat" | "ai" | "puzzle";
 
 interface GameState {
   phase: Phase;
   mode: Mode;
-  botId: string | null;
+  /** Which tier the AI opponent was drawn from, and the shape it drew. */
+  aiDifficulty: Difficulty | null;
+  aiArchetype: ArchetypeId | null;
   puzzleId: string | null;
   /**
    * Drawn once per match and held steady across rematches, so the HQ column
@@ -43,7 +52,7 @@ interface GameState {
 
   // --- actions ---
   startHotseat: () => void;
-  startBot: (botId: string) => void;
+  startAi: (difficulty: Difficulty) => void;
   startPuzzle: (puzzleId: string) => void;
   rematch: () => void;
   backHome: () => void;
@@ -79,22 +88,16 @@ function withHq(team: Team, anchors: HqAnchors): Deployment {
   return { team, units: [{ type: "hq", row: anchor.row, col: anchor.col, facing: "N" }] };
 }
 
-function newSeed(): number {
-  return (Date.now() & 0x7fffffff) >>> 0;
-}
+let seedCounter = 0;
 
 /**
- * A stored formation carries the HQ position it was built around — moving the
- * objective under it would wall its sandbags around empty ground. The player's
- * own column is still drawn, since the two columns are independent.
+ * A counter is mixed in because Date.now() has millisecond resolution: two
+ * matches started in the same millisecond would otherwise draw the same seed,
+ * and so the same board and the same AI opponent.
  */
-function anchorsFromBotDeployment(deployment: Deployment, seed: number): HqAnchors {
-  const hq = deployment.units.find((unit) => unit.type === "hq");
-  if (hq === undefined) return HQ_ANCHOR;
-  return {
-    A: hqAnchorsForSeed(seed).A,
-    B: { row: hq.row, col: hq.col },
-  };
+function newSeed(): number {
+  seedCounter = (seedCounter + 1) >>> 0;
+  return ((Date.now() ^ Math.imul(seedCounter, 0x9e3779b1)) & 0x7fffffff) >>> 0;
 }
 
 export function remainingFor(deployment: Deployment, kit: Roster = MVP_ARMY) {
@@ -136,7 +139,8 @@ const FRESH = {
 export const useGame = create<GameState>((set, get) => ({
   phase: "home",
   mode: "hotseat",
-  botId: null,
+  aiDifficulty: null,
+  aiArchetype: null,
   puzzleId: null,
   activeTeam: "A",
   matchSeed: 0,
@@ -153,7 +157,8 @@ export const useGame = create<GameState>((set, get) => ({
     set({
       phase: "deploy",
       mode: "hotseat",
-      botId: null,
+      aiDifficulty: null,
+      aiArchetype: null,
       puzzleId: null,
       activeTeam: "A",
       matchSeed,
@@ -164,22 +169,32 @@ export const useGame = create<GameState>((set, get) => ({
     });
   },
 
-  startBot: (botId) => {
-    const bot = botById(botId);
-    if (bot === undefined) return;
+  /**
+   * The opposing army is generated, not stored — a fresh legal formation every
+   * match, built by the same generator the balance sweep uses. Difficulty picks
+   * which archetype pool it draws from, and those pools are ordered by measured
+   * head-to-head win rate rather than by feel.
+   */
+  startAi: (difficulty) => {
     const matchSeed = newSeed();
-    const hqAnchors = anchorsFromBotDeployment(bot.deployment, matchSeed);
+    const hqAnchors = hqAnchorsForSeed(matchSeed);
+    const rng = mulberry32(matchSeed ^ 0x5bf03635);
+    const pool = DIFFICULTY_POOLS[difficulty];
+    const archetypeId = pool[rng.nextInt(pool.length)] ?? "line";
+    const enemy = generateFormation("B", hqAnchors, archetypeById(archetypeId), rng);
+
     set({
       phase: "deploy",
-      mode: "bot",
-      botId,
+      mode: "ai",
+      aiDifficulty: difficulty,
+      aiArchetype: archetypeId,
       puzzleId: null,
       activeTeam: "A",
       matchSeed,
       hqAnchors,
-      // The bot's formation is loaded now but stays hidden until the reveal —
-      // except its HQ, which is public.
-      deployments: { A: withHq("A", hqAnchors), B: bot.deployment },
+      // Their army is decided now but stays hidden until the reveal, exactly
+      // as a human opponent's would.
+      deployments: { A: withHq("A", hqAnchors), B: enemy },
       lastFormation: { A: null, B: null },
       ...FRESH,
     });
@@ -192,9 +207,10 @@ export const useGame = create<GameState>((set, get) => ({
       phase: "deploy",
       mode: "puzzle",
       puzzleId,
-      botId: null,
       activeTeam: "A",
       matchSeed: newSeed(),
+      aiDifficulty: null,
+      aiArchetype: null,
       // Puzzles are designed scenarios: their HQ sits where the author put it.
       hqAnchors: HQ_ANCHOR,
       // A puzzle's enemy is VISIBLE the whole time — that is the point of it.

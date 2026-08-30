@@ -7,6 +7,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { BOARD, hqAnchorsForSeed, zoneOwner } from "../game/config/gameConfig.ts";
+import { DIFFICULTY_POOLS } from "../game/content/formations.ts";
 import { evaluatePuzzle, puzzleById } from "../game/content/puzzles.ts";
 import { arcPreview } from "../game/engine/preview.ts";
 import { simulateBattle } from "../game/engine/simulate.ts";
@@ -251,18 +252,40 @@ describe("arc preview", () => {
   });
 });
 
-describe("bot mode", () => {
+describe("vs AI mode", () => {
   beforeEach(() => {
     store().backHome();
-    store().startBot("the-line");
+    store().startAi("hard");
   });
 
-  it("loads the bot's formation as Orange and starts you deploying", () => {
+  it("generates a complete, legal opposing army", () => {
     expect(store().phase).toBe("deploy");
-    expect(store().mode).toBe("bot");
+    expect(store().mode).toBe("ai");
     expect(store().activeTeam).toBe("A");
-    expect(store().deployments.B.units.length).toBeGreaterThan(0);
-    expect(validateDeployment(store().deployments.B).ok).toBe(true);
+    // Generated, not stored — and it must satisfy the same rules a human does.
+    expect(validateDeployment(store().deployments.B).errors).toEqual([]);
+  });
+
+  it("draws a different opponent on each new match, even started back to back", () => {
+    const shapes = new Set<string>();
+    const layouts = new Set<string>();
+    for (let i = 0; i < 12; i++) {
+      store().backHome();
+      store().startAi("hard");
+      shapes.add(store().aiArchetype ?? "");
+      layouts.add(JSON.stringify(store().deployments.B.units));
+    }
+    expect(shapes.size).toBeGreaterThan(1);
+    expect(layouts.size).toBeGreaterThan(1);
+  });
+
+  it.each(["easy", "medium", "hard"] as const)("%s draws from its own pool", (difficulty) => {
+    store().backHome();
+    store().startAi(difficulty);
+    const picked = store().aiArchetype;
+    expect(picked).not.toBeNull();
+    expect(DIFFICULTY_POOLS[difficulty]).toContain(picked);
+    expect(store().aiDifficulty).toBe(difficulty);
   });
 
   it("skips the handoff and fights immediately on Ready", () => {
@@ -272,7 +295,7 @@ describe("bot mode", () => {
     expect(store().result).not.toBeNull();
   });
 
-  it("keeps the bot's formation on a rematch, and reloads only yours", () => {
+  it("keeps the same opponent on a rematch, and reloads only your side", () => {
     store().autoFill();
     const mine = store().deployments.A.units;
     const theirs = store().deployments.B.units;
@@ -283,11 +306,10 @@ describe("bot mode", () => {
     expect(store().deployments.B.units).toEqual(theirs);
   });
 
-  it("ignores an unknown bot id", () => {
-    store().backHome();
-    const before = store().phase;
-    store().startBot("nope");
-    expect(store().phase).toBe(before);
+  it("puts the AI's HQ on its own drawn column, independent of yours", () => {
+    const { hqAnchors } = store();
+    const hq = store().deployments.B.units.find((u) => u.type === "hq");
+    expect(hq).toMatchObject({ row: hqAnchors.B.row, col: hqAnchors.B.col });
   });
 });
 

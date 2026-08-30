@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArmyPanel } from "../components/ArmyPanel.tsx";
 import { Board, type RenderUnit, toRenderUnits } from "../components/Board.tsx";
-import { botById } from "../game/content/bots.ts";
 import { arcPreview } from "../game/engine/preview.ts";
 import { canPlace } from "../game/models/deployment.ts";
 import type { Coord, PlacedUnit } from "../game/types.ts";
@@ -10,7 +9,7 @@ import { activeKit, activePuzzle, useGame } from "../store/gameStore.ts";
 export function DeploymentScreen() {
   const mode = useGame((s) => s.mode);
   const puzzleId = useGame((s) => s.puzzleId);
-  const botId = useGame((s) => s.botId);
+  const mode2 = useGame((s) => s.mode);
   const activeTeam = useGame((s) => s.activeTeam);
   const deployment = useGame((s) => s.deployments[s.activeTeam]);
   const enemyDeployment = useGame((s) => s.deployments[s.activeTeam === "A" ? "B" : "A"]);
@@ -29,7 +28,6 @@ export function DeploymentScreen() {
 
   const kit = useMemo(() => activeKit({ mode, puzzleId }), [mode, puzzleId]);
   const puzzle = useMemo(() => activePuzzle({ mode, puzzleId }), [mode, puzzleId]);
-  const bot = botId === null ? undefined : botById(botId);
 
   const [hovered, setHovered] = useState<Coord | null>(null);
 
@@ -171,9 +169,9 @@ export function DeploymentScreen() {
         <p className="hint board-note">
           {puzzle !== null
             ? "The enemy formation is fully visible. Work out the placement that beats it."
-            : `Both HQs are fixed and public — ${
-                bot === undefined ? "your opponent's" : `${bot.name}'s`
-              } units stay hidden until the reveal. You know what to attack and what to defend.`}
+            : `Both HQs are fixed and public${
+                mode2 === "ai" ? ", and the AI has already picked its ground" : ""
+              } — their units stay hidden until the reveal. You know what to attack and what to defend.`}
         </p>
       </div>
 

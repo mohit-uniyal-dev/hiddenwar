@@ -1,4 +1,4 @@
-import { BOTS } from "./game/content/bots.ts";
+import { DIFFICULTIES } from "./game/content/formations.ts";
 import { PUZZLES } from "./game/content/puzzles.ts";
 import { BattleScreen } from "./screens/Battle.tsx";
 import { DeploymentScreen } from "./screens/Deployment.tsx";
@@ -6,12 +6,10 @@ import { ResultsScreen } from "./screens/Results.tsx";
 import { useGame } from "./store/gameStore.ts";
 
 /**
- * Puzzle and single-player modes are built, tested and working — they are just
- * not surfaced while hotseat is the focus of playtesting. Flip these to true to
- * bring them back; nothing else needs to change.
+ * Puzzle mode is built, tested and working — just not surfaced yet. Flip to
+ * true to bring it back; nothing else needs to change.
  */
 const SHOW_PUZZLES = false;
-const SHOW_BOTS = false;
 
 export function App() {
   const phase = useGame((s) => s.phase);
@@ -29,7 +27,7 @@ export function App() {
 
 function HomeScreen() {
   const startHotseat = useGame((s) => s.startHotseat);
-  const startBot = useGame((s) => s.startBot);
+  const startAi = useGame((s) => s.startAi);
   const startPuzzle = useGame((s) => s.startPuzzle);
 
   return (
@@ -39,7 +37,7 @@ function HomeScreen() {
         <p>Secretly dig in your army — then watch two plans collide</p>
       </div>
 
-      <div className="menu menu-single">
+      <div className="menu">
         {SHOW_PUZZLES && (
           <div className="panel">
             <h2>Puzzles</h2>
@@ -61,23 +59,22 @@ function HomeScreen() {
           </div>
         )}
 
-        {SHOW_BOTS && (
-          <div className="panel">
-            <h2>Single player</h2>
-            <p className="menu-note">
-              Deploy against a stored formation. It cannot see yours either.
-            </p>
-            {BOTS.map((b) => (
-              <button type="button" key={b.id} className="army-row" onClick={() => startBot(b.id)}>
-                <span className={`chip diff-${b.difficulty.toLowerCase()}`}>{b.difficulty[0]}</span>
-                <span className="name">
-                  {b.name}
-                  <em>{b.blurb}</em>
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="panel">
+          <h2>vs. AI</h2>
+          <p className="menu-note">
+            The opposing army is generated fresh each match — a different legal formation every
+            time, not a stored one. The tiers are ordered by measured win rate, not by feel.
+          </p>
+          {DIFFICULTIES.map((d) => (
+            <button type="button" key={d.id} className="army-row" onClick={() => startAi(d.id)}>
+              <span className={`chip diff-${d.id}`}>{d.label[0]}</span>
+              <span className="name">
+                {d.label}
+                <em>{d.blurb}</em>
+              </span>
+            </button>
+          ))}
+        </div>
 
         <div className="panel">
           <h2>Hotseat</h2>

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Board, type RenderUnit } from "../components/Board.tsx";
 import { UnitIcon } from "../components/UnitIcon.tsx";
-import { botById } from "../game/content/bots.ts";
+import { archetypeById } from "../game/content/formations.ts";
 import { PUZZLES, evaluatePuzzle } from "../game/content/puzzles.ts";
 import { buildInsights } from "../game/engine/insights.ts";
 import { activePuzzle, useGame } from "../store/gameStore.ts";
@@ -20,7 +20,7 @@ export function ResultsScreen() {
   const backHome = useGame((s) => s.backHome);
   const mode = useGame((s) => s.mode);
   const puzzleId = useGame((s) => s.puzzleId);
-  const botId = useGame((s) => s.botId);
+  const aiArchetype = useGame((s) => s.aiArchetype);
   const startPuzzle = useGame((s) => s.startPuzzle);
 
   const puzzle = useMemo(() => activePuzzle({ mode, puzzleId }), [mode, puzzleId]);
@@ -28,7 +28,7 @@ export function ResultsScreen() {
     () => (puzzle === null || result === null ? null : evaluatePuzzle(puzzle, result)),
     [puzzle, result],
   );
-  const bot = botId === null ? undefined : botById(botId);
+  const aiShape = aiArchetype === null ? undefined : archetypeById(aiArchetype);
 
   const insights = useMemo(
     () => (result === null ? [] : buildInsights(result.events, result.stats)),
@@ -94,10 +94,10 @@ export function ResultsScreen() {
           </div>
         )}
 
-        {bot !== undefined && (
+        {aiShape !== undefined && (
           <div className="keymoment">
-            <strong>{bot.name}</strong>
-            {bot.tell}
+            <strong>They played: {aiShape.label}</strong>
+            {aiShape.tell}
           </div>
         )}
 

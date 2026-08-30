@@ -20,7 +20,7 @@ pnpm dev          # http://localhost:5173
 | --- | --- |
 | `pnpm dev` | Vite dev server |
 | `pnpm build` | Typecheck + production bundle into `dist/` |
-| `pnpm test` | Vitest, 125 tests |
+| `pnpm test` | Vitest, 129 tests |
 | `pnpm test:watch` | Vitest in watch mode |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm lint` | Biome |
@@ -36,9 +36,13 @@ Three modes, all playable:
 
 | Mode | What it is |
 | --- | --- |
-| **Hotseat** | Two players, one device, secret deployment both ways. **The only mode currently surfaced.** |
-| *Puzzles* | 5 setups with a *visible* enemy and a small kit — a curriculum from facing through cones, cover and artillery. Built and tested; hidden behind `SHOW_PUZZLES` in [App.tsx](src/App.tsx) while hotseat is the playtest focus. |
-| *Single player* | 3 handcrafted bot formations (Easy/Medium). Built and tested; hidden behind `SHOW_BOTS`. |
+| **vs. AI** | Single player. The opposing army is **generated fresh each match** — a different legal formation every time. Three tiers (Recruit / Regular / Veteran) drawn from archetype pools ordered by *measured* head-to-head win rate, not by feel. |
+| **Hotseat** | Two players, one device, secret deployment both ways. |
+| *Puzzles* | 5 setups with a *visible* enemy and a small kit — a curriculum from facing through cones, cover and artillery. Built and tested; hidden behind `SHOW_PUZZLES` in [App.tsx](src/App.tsx). |
+
+The AI reuses the same generator the balance sweep runs on, so every opponent it
+produces is validated by the same rules a human deployment is. After the battle
+the report names the shape it played and where that shape is weak.
 
 The full loop from §F.2 of the roadmap:
 

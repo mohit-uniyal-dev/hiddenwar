@@ -1,6 +1,11 @@
 /**
- * Handcrafted bot formations. Roadmap §F.2 ("3 handcrafted bot formations")
- * and §53 (Easy / Medium).
+ * Handcrafted bot formations. Roadmap §F.2 and §53.
+ *
+ * NOT CURRENTLY WIRED TO ANY SCREEN. The "vs. AI" mode generates a fresh army
+ * every match instead (see formations.ts), which gives far more variety than
+ * three stored shapes. These are kept, and kept under test, because §E.4's
+ * ghost-army path is exactly this: stored formations harvested from real play.
+ * Delete them if that path is abandoned.
  *
  * These are stored formations, not an AI — which is exactly what §E.4 argues
  * the strongest version of this system is anyway. Every deployment a real
