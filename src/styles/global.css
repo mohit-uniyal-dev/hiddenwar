@@ -458,8 +458,9 @@ button.danger {
 }
 
 .unit-art {
-  width: 76%;
-  height: 76%;
+  position: relative;
+  width: 100%;
+  height: 100%;
   display: grid;
   place-items: center;
   filter: drop-shadow(0 1px 0 rgba(255, 250, 228, 0.9))
@@ -467,19 +468,8 @@ button.danger {
   pointer-events: none;
 }
 
-.unit.type-mg .unit-art {
-  width: 82%;
-  height: 82%;
-}
-
-.unit.type-tank .unit-art {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-/* A quiet team-colour plate keeps the neutral tank sprite readable as either force. */
-.unit.type-tank .unit-art::before {
+/* A quiet team-colour plate keeps the neutral sprites readable as either force. */
+.unit:not(.hq) .unit-art::before {
   content: "";
   position: absolute;
   inset: 10%;
@@ -488,20 +478,17 @@ button.danger {
   opacity: 0.62;
 }
 
-.unit.team-A.type-tank .unit-art::before {
+.unit.team-A:not(.hq) .unit-art::before {
   background: rgba(29, 118, 181, 0.22);
 }
 
-.unit.team-B.type-tank .unit-art::before {
+.unit.team-B:not(.hq) .unit-art::before {
   background: rgba(203, 104, 28, 0.22);
 }
 
-.unit.type-mortar .unit-art {
-  width: 78%;
-  height: 82%;
-}
-
 .unit-icon {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
@@ -509,22 +496,9 @@ button.danger {
   overflow: visible;
 }
 
-.unit-icon-tank {
-  position: relative;
-  z-index: 1;
-}
-
 /* Both armies automatically point toward the opposing side of the board. */
-.team-B .unit-icon-tank {
+.team-B .unit-icon {
   transform: rotate(180deg);
-}
-
-.unit-icon .icon-detail {
-  fill: rgba(27, 31, 30, 0.34);
-}
-
-.unit-icon .icon-seam {
-  opacity: 0.35;
 }
 
 /* Structures read as flat slabs, not tokens — shape coding (§E.6) */
@@ -532,21 +506,11 @@ button.danger {
   inset: 1px;
 }
 
-.unit.structure .unit-art {
-  width: 92%;
-  height: 92%;
-}
-
 .unit.hq {
   inset: 3px;
   border: 1.5px dashed currentColor;
   border-radius: 8px;
   opacity: 0.92;
-}
-
-.unit.hq .unit-art {
-  width: 62%;
-  height: 62%;
 }
 
 .unit.selected {
@@ -574,12 +538,6 @@ button.danger {
 }
 
 .unit.destroyed {
-  opacity: 0.2;
-  filter: grayscale(1);
-}
-
-/* The wreck artwork already communicates destruction, so keep its details legible. */
-.unit.type-tank.destroyed {
   opacity: 0.72;
   filter: grayscale(0.35) brightness(0.78);
 }

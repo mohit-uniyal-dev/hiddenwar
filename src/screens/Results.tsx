@@ -162,7 +162,16 @@ export function ResultsScreen() {
                 <tr key={u.id} className={u.survived ? "" : "dead"}>
                   <td>
                     <span className={`report-unit-icon team-${u.team}`}>
-                      <UnitIcon type={u.type} state={u.survived ? "intact" : "destroyed"} />
+                      <UnitIcon
+                        type={u.type}
+                        state={
+                          !u.survived
+                            ? "destroyed"
+                            : u.hpRemaining / u.maxHp < 0.6
+                              ? "damaged"
+                              : "intact"
+                        }
+                      />
                     </span>{" "}
                     {u.name}
                   </td>
