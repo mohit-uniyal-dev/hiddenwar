@@ -31,7 +31,8 @@
   --arc-line: rgba(32, 46, 40, 0.75);
   --arc-blocked: rgba(120, 110, 95, 0.22);
 
-  --tile: clamp(30px, 6.2vh, 58px);
+  /* Tall board: cap by height so the column never overflows the viewport. */
+  --tile: min(3.4rem, calc((100dvh - 21rem) / var(--board-rows, 11)));
   --radius: 7px;
 
   --font: "Barlow Condensed", "Oswald", "Arial Narrow", system-ui, sans-serif;
@@ -119,13 +120,27 @@ button.danger {
   gap: 1rem;
 }
 
+/*
+ * Portrait everywhere.
+ *
+ * The board is 8 wide by 11 tall, so the natural composition is a phone-shaped
+ * column: board on top, panel beneath. Laying it out as a row put the panel
+ * beside the board and made the whole app read as landscape at any width above
+ * the mobile breakpoint — desktop should be a preview of the phone experience,
+ * not a different game.
+ */
 .screen {
   display: flex;
-  gap: 1.25rem;
-  align-items: flex-start;
-  max-width: 1200px;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
   width: 100%;
-  justify-content: center;
+  max-width: 32rem;
+  justify-content: flex-start;
+}
+
+.screen > .panel.army {
+  width: 100%;
 }
 
 .panel {
@@ -1799,62 +1814,6 @@ ul.objectives li.fail {
 
   .title h1 {
     letter-spacing: 0.12em;
-  }
-}
-
-/*
- * Landscape phones. Stacking here would be a mistake: the roster and buttons
- * eat the little height there is, forcing ~17px tiles. Putting the panel BESIDE
- * the board instead yields ~36px tiles — larger than portrait manages — while
- * still keeping board and picker on screen together.
- */
-@media (max-width: 980px) and (orientation: landscape) and (max-height: 560px) {
-  :root {
-    --tile: min(
-      calc((100vw - 15rem) / var(--board-cols, 8)),
-      calc((100dvh - 2.5rem) / var(--board-rows, 11))
-    );
-  }
-
-  .app {
-    justify-content: center;
-    padding: 0.35rem;
-    gap: 0.35rem;
-  }
-
-  .screen {
-    flex-direction: row;
-    align-items: stretch;
-    gap: 0.5rem;
-  }
-
-  .army {
-    flex: 0 0 13.5rem;
-    min-width: 0;
-    max-height: calc(100dvh - 0.7rem);
-    overflow-y: auto;
-    padding: 0.5rem;
-  }
-
-  .roster .army-row {
-    min-height: 2.4rem;
-    padding: 0.3rem 0.4rem;
-  }
-
-  .board-note,
-  .panel-lead,
-  .stat-block dl,
-  .legend {
-    display: none;
-  }
-
-  .stat-compact,
-  .facing-control {
-    display: block;
-  }
-
-  .facing-control {
-    display: flex;
   }
 }
 
