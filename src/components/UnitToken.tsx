@@ -45,6 +45,7 @@ export function UnitToken({
     .join(" ");
 
   const barClass = hpFraction < 0.3 ? "critical" : hpFraction < 0.6 ? "low" : "";
+  const visualState = destroyed ? "destroyed" : hpFraction < 0.6 ? "damaged" : "intact";
 
   return (
     <div
@@ -63,7 +64,7 @@ export function UnitToken({
       aria-label={onClick ? type : undefined}
     >
       <span className="unit-art">
-        <UnitIcon type={type} />
+        <UnitIcon type={type} state={visualState} />
       </span>
       {hpFraction < 1 && !destroyed && (
         <span className="hpbar">

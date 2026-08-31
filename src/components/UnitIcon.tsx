@@ -1,20 +1,38 @@
+import tankDamaged from "../assets/units/tank/tank-damaged.png";
+import tankDestroyed from "../assets/units/tank/tank-destroyed.png";
+import tankIntact from "../assets/units/tank/tank-intact.png";
 import type { UnitTypeId } from "../game/types.ts";
+
+export type UnitVisualState = "intact" | "damaged" | "destroyed";
 
 interface Props {
   type: UnitTypeId;
+  state?: UnitVisualState;
   className?: string;
 }
 
+const TANK_SPRITES: Record<UnitVisualState, string> = {
+  intact: tankIntact,
+  damaged: tankDamaged,
+  destroyed: tankDestroyed,
+};
+
 /**
- * A deliberately chunky, single-colour SVG set for the game pieces.
+ * Unit artwork shared by the board, roster and reports.
  *
- * The silhouettes stay readable at board-token size and use `currentColor`, so
- * the same artwork works for both forces, disabled roster cards and reports.
+ * Most units still use chunky `currentColor` SVG silhouettes. Tanks are the
+ * first production sprite set and opt into health-state artwork.
  */
-export function UnitIcon({ type, className = "" }: Props) {
+export function UnitIcon({ type, state = "intact", className = "" }: Props) {
+  const classes = `unit-icon unit-icon-${type} ${className}`.trim();
+
+  if (type === "tank") {
+    return <img className={classes} src={TANK_SPRITES[state]} alt="" draggable={false} />;
+  }
+
   return (
     <svg
-      className={`unit-icon unit-icon-${type} ${className}`.trim()}
+      className={classes}
       viewBox="0 0 64 64"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
