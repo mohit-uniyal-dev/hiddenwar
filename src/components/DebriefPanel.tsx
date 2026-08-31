@@ -126,7 +126,7 @@ export function DebriefPanel({ result, deployments, seed, craters, allowSideSwit
         <div className={`keymoment one-move ${edit.wins ? "winning" : ""}`}>
           <strong>{edit.wins ? "This would have won it" : "Closest single move"}</strong>
           <span className={`report-unit-icon team-${team}`}>
-            <UnitIcon type={edit.type as "soldier"} />
+            <UnitIcon type={edit.type} />
           </span>{" "}
           Move it from row {edit.from.row + 1}, column {edit.from.col + 1} to row {edit.to.row + 1},
           column {edit.to.col + 1}.

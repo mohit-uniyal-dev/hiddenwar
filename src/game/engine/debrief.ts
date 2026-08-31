@@ -23,7 +23,7 @@
 import { BOARD, zoneOwner } from "../config/gameConfig.ts";
 import { UNITS } from "../config/units.ts";
 import { canPlace } from "../models/deployment.ts";
-import type { Coord, Deployment, Team } from "../types.ts";
+import type { Coord, Deployment, Team, UnitTypeId } from "../types.ts";
 import type { BattleEvent } from "./events.ts";
 import { footprint } from "./geometry.ts";
 import { type BattleResult, simulateBattle } from "./simulate.ts";
@@ -196,7 +196,7 @@ export function buildDebrief(
 
 export interface SuggestedEdit {
   readonly unitIndex: number;
-  readonly type: string;
+  readonly type: UnitTypeId;
   readonly from: Coord;
   readonly to: Coord;
   /** Whether this single move turns the loss into a win. */

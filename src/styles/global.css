@@ -317,14 +317,20 @@ button.danger {
   cursor: default;
 }
 
+/*
+  Territory is the team indicator, so it has to be legible on its own.
+  At 0.08 the two halves were near enough identical on a phone in daylight;
+  this is the whole colour channel for "whose piece is that" now that the
+  per-unit discs are gone.
+*/
 .tile.zone-a {
   background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.09), transparent 72%),
-    rgba(29, 95, 158, 0.08);
+    rgba(29, 95, 158, 0.17);
 }
 
 .tile.zone-b {
   background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.09), transparent 72%),
-    rgba(194, 102, 26, 0.08);
+    rgba(194, 102, 26, 0.17);
 }
 
 .tile.nml {
@@ -468,22 +474,35 @@ button.danger {
   pointer-events: none;
 }
 
-/* A quiet team-colour plate keeps the neutral sprites readable as either force. */
+/*
+  A contact shadow, not a badge.
+
+  There used to be a team-coloured disc behind every sprite here, and it was
+  carrying no information. Units never move and can only ever be placed in
+  their own half, so a piece's ZONE identifies its side with total reliability —
+  the disc was re-stating what the board already said, on top of detailed
+  artwork, in the one shape the board already uses for craters. Three circles
+  meaning three different things is not colour coding, it is noise.
+
+  What replaces it is what the art actually wants: a soft ellipse under the
+  piece so it sits ON the ground instead of floating over it. Team identity
+  moves to the zone tint, which is strengthened to carry that load alone.
+
+  The HQ is excluded: its sprite is 2:3 but a node's footprint is 1:2, so
+  `object-fit: contain` letterboxes it and a shadow pinned to the bottom of the
+  tile would float well clear of the artwork. It has its own dashed frame to sit
+  in. Exporting that one at 1:2 would let it join in.
+*/
 .unit:not(.hq) .unit-art::before {
   content: "";
   position: absolute;
-  inset: 10%;
-  border: 2px solid currentColor;
+  left: 15%;
+  right: 15%;
+  bottom: 3%;
+  height: 15%;
   border-radius: 50%;
-  opacity: 0.62;
-}
-
-.unit.team-A:not(.hq) .unit-art::before {
-  background: rgba(29, 118, 181, 0.22);
-}
-
-.unit.team-B:not(.hq) .unit-art::before {
-  background: rgba(203, 104, 28, 0.22);
+  background: radial-gradient(ellipse at 50% 50%, rgba(50, 38, 20, 0.36), transparent 70%);
+  z-index: 0;
 }
 
 .unit-icon {
