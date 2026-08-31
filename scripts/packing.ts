@@ -1,0 +1,321 @@
+/**
+ * Is a 4x8 deployment zone big enough to hold an interesting packing puzzle?
+ *
+ *   node scripts/packing.ts [--boards 200] [--cap 2000000]
+ *
+ * The question behind the question: multi-tile pieces are only worth their cost
+ * in art, rotation UI and drag ergonomics if the packing constraint actually
+ * BINDS. Three ways that can go wrong, and only the middle one is a game:
+ *
+ *   FORCED      so few legal arrangements that the board plays itself.
+ *   INTERESTING enough room to express a plan, not enough to have everything.
+ *   INERT       so many arrangements that the shapes never stop you doing
+ *               anything, and all the complexity bought nothing.
+ *
+ * Counting is exact, not sampled. Placement always fills the lowest empty cell
+ * — either with a piece whose first cell lands there, or by spending one of a
+ * bounded number of deliberate gaps — so every distinct arrangement is reached
+ * exactly once and none is reached twice. Pieces of one type are counted, never
+ * labelled, so five interchangeable soldiers do not inflate the total by 120.
+ *
+ * 1x1 pieces are handled arithmetically rather than searched: once the shaped
+ * pieces are down, any subset of the remaining cells will hold them, so their
+ * contribution is a binomial coefficient. Searching them would take exponential
+ * time to rediscover that they never constrain anything — which is itself one
+ * of the findings below.
+ */
+
+import { BOARD, hqAnchorsForSeed, terrainForSeed } from "../src/game/config/gameConfig.ts";
+import { numberFlag } from "./experiment.ts";
+
+const args = process.argv.slice(2);
+const BOARDS = numberFlag(args, "boards", 200);
+const CAP = numberFlag(args, "cap", 2_000_000);
+
+const ROWS = 4;
+const COLS = BOARD.cols;
+const CELLS = ROWS * COLS;
+
+type Cell = readonly [number, number];
+
+/** All four rotations of a shape, normalised and de-duplicated. */
+function orientations(cells: readonly Cell[]): Cell[][] {
+  const seen = new Map<string, Cell[]>();
+  let current = cells.map((c) => [c[0], c[1]] as Cell);
+  for (let turn = 0; turn < 4; turn++) {
+    const minR = Math.min(...current.map((c) => c[0]));
+    const minC = Math.min(...current.map((c) => c[1]));
+    const normalised = current
+      .map((c) => [c[0] - minR, c[1] - minC] as Cell)
+      .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    seen.set(JSON.stringify(normalised), normalised);
+    current = current.map((c) => [c[1], -c[0]] as Cell);
+  }
+  return [...seen.values()];
+}
+
+interface Piece {
+  readonly name: string;
+  readonly count: number;
+  readonly cells: readonly Cell[];
+}
+
+const O: Cell[] = [
+  [0, 0],
+  [0, 1],
+  [1, 0],
+  [1, 1],
+];
+const I3: Cell[] = [
+  [0, 0],
+  [0, 1],
+  [0, 2],
+];
+const L3: Cell[] = [
+  [0, 0],
+  [1, 0],
+  [1, 1],
+];
+const T4: Cell[] = [
+  [0, 0],
+  [0, 1],
+  [0, 2],
+  [1, 1],
+];
+const DOM: Cell[] = [
+  [0, 0],
+  [0, 1],
+];
+const S4: Cell[] = [
+  [0, 1],
+  [0, 2],
+  [1, 0],
+  [1, 1],
+];
+const ONE: Cell[] = [[0, 0]];
+
+interface ShapeSet {
+  readonly label: string;
+  readonly pieces: readonly Piece[];
+}
+
+const SETS: readonly ShapeSet[] = [
+  {
+    label: "today (everything 1x1)",
+    pieces: [
+      { name: "soldier", count: 5, cells: ONE },
+      { name: "mg", count: 2, cells: ONE },
+      { name: "atgun", count: 1, cells: ONE },
+      { name: "tank", count: 1, cells: ONE },
+      { name: "mortar", count: 1, cells: ONE },
+      { name: "sandbag", count: 6, cells: ONE },
+    ],
+  },
+  {
+    label: "mixed: heavies get shapes",
+    pieces: [
+      { name: "soldier", count: 5, cells: ONE },
+      { name: "mg", count: 2, cells: DOM },
+      { name: "atgun", count: 1, cells: I3 },
+      { name: "tank", count: 1, cells: O },
+      { name: "mortar", count: 1, cells: L3 },
+      { name: "sandbag", count: 6, cells: ONE },
+    ],
+  },
+  {
+    label: "true tetris, 8 pieces",
+    pieces: [
+      { name: "tank", count: 1, cells: O },
+      { name: "mortar", count: 1, cells: T4 },
+      { name: "atgun", count: 1, cells: I3 },
+      { name: "mg", count: 2, cells: L3 },
+      { name: "squad", count: 2, cells: DOM },
+      { name: "bunker", count: 1, cells: S4 },
+    ],
+  },
+  {
+    label: "true tetris, oversupplied",
+    pieces: [
+      { name: "tank", count: 1, cells: O },
+      { name: "mortar", count: 1, cells: T4 },
+      { name: "atgun", count: 2, cells: I3 },
+      { name: "mg", count: 2, cells: L3 },
+      { name: "squad", count: 3, cells: DOM },
+      { name: "bunker", count: 2, cells: S4 },
+    ],
+  },
+];
+
+/** Blocked cells in Blue's zone for one board draw: node footprints and craters. */
+function blockedFor(seed: number): boolean[] {
+  const blocked = new Array<boolean>(CELLS).fill(false);
+  const anchors = hqAnchorsForSeed(seed);
+  const zoneTop = BOARD.teamARows[0];
+  for (const node of anchors.A) {
+    for (let r = node.row; r < node.row + 2; r++) {
+      blocked[(r - zoneTop) * COLS + node.col] = true;
+    }
+  }
+  for (const crater of terrainForSeed(seed, anchors)) {
+    if (crater.row < zoneTop || crater.row > BOARD.teamARows[1]) continue;
+    blocked[(crater.row - zoneTop) * COLS + crater.col] = true;
+  }
+  return blocked;
+}
+
+/** n choose k, exact for the sizes here. */
+function choose(n: number, k: number): number {
+  if (k < 0 || k > n) return 0;
+  let out = 1;
+  for (let i = 0; i < k; i++) out = (out * (n - i)) / (i + 1);
+  return Math.round(out);
+}
+
+interface Shaped {
+  readonly name: string;
+  count: number;
+  readonly forms: readonly Cell[][];
+  readonly size: number;
+}
+
+/**
+ * Count every distinct complete deployment, up to `cap`.
+ *
+ * `requireFrontRank` answers the question the archetype table cannot: with these
+ * shapes, is the currently dominant formation — a unit in every column of the
+ * rank nearest the enemy — still buildable at all?
+ */
+function countPackings(
+  set: ShapeSet,
+  blocked: readonly boolean[],
+  cap: number,
+  requireFrontRank: boolean,
+): number {
+  const shaped: Shaped[] = set.pieces
+    .filter((p) => p.cells.length > 1)
+    .map((p) => ({
+      name: p.name,
+      count: p.count,
+      forms: orientations(p.cells),
+      size: p.cells.length,
+    }));
+  const singles = set.pieces
+    .filter((p) => p.cells.length === 1)
+    .reduce((sum, p) => sum + p.count, 0);
+
+  const free = blocked.filter((b) => !b).length;
+  const shapedTiles = shaped.reduce((sum, p) => sum + p.count * p.size, 0);
+  if (shapedTiles + singles > free) return 0;
+
+  const grid = [...blocked];
+  let total = 0;
+
+  // Front-rank cells that must end up covered, if we are asking that question.
+  const mustFill = new Set<number>();
+  if (requireFrontRank) {
+    for (let c = 0; c < COLS; c++) if (!blocked[c]) mustFill.add(c);
+  }
+
+  const search = (from: number, gaps: number): void => {
+    if (total >= cap) return;
+    if (shaped.every((p) => p.count === 0)) {
+      // Whatever is still empty can hold the 1x1s, in any combination.
+      let empty = 0;
+      let unfilledFront = 0;
+      for (let i = from; i < CELLS; i++) if (!grid[i]) empty++;
+      if (requireFrontRank) {
+        for (const cell of mustFill) if (!grid[cell]) unfilledFront++;
+      }
+      // Front-rank cells still open must be taken by 1x1s, so those are spoken
+      // for; the rest are free choices.
+      if (unfilledFront > singles) return;
+      total += choose(empty - unfilledFront, singles - unfilledFront);
+      if (total > cap) total = cap;
+      return;
+    }
+
+    let cell = from;
+    while (cell < CELLS && grid[cell]) cell++;
+    if (cell >= CELLS) return;
+
+    const row = Math.floor(cell / COLS);
+    const col = cell % COLS;
+
+    for (const piece of shaped) {
+      if (piece.count === 0) continue;
+      for (const form of piece.forms) {
+        // Anchor so the form's first cell sits exactly on `cell`; that is what
+        // makes every arrangement reachable by exactly one path.
+        const [ar, ac] = form[0] as Cell;
+        const baseR = row - ar;
+        const baseC = col - ac;
+        let fits = true;
+        for (const [dr, dc] of form) {
+          const r = baseR + dr;
+          const c = baseC + dc;
+          if (r < 0 || r >= ROWS || c < 0 || c >= COLS || grid[r * COLS + c]) {
+            fits = false;
+            break;
+          }
+        }
+        if (!fits) continue;
+        for (const [dr, dc] of form) grid[(baseR + dr) * COLS + baseC + dc] = true;
+        piece.count--;
+        search(cell + 1, gaps);
+        piece.count++;
+        for (const [dr, dc] of form) grid[(baseR + dr) * COLS + baseC + dc] = false;
+        if (total >= cap) return;
+      }
+    }
+
+    // Or deliberately leave this cell for a 1x1, or empty.
+    if (gaps > 0) {
+      grid[cell] = true;
+      search(cell + 1, gaps - 1);
+      grid[cell] = false;
+    }
+  };
+
+  const slack = free - shapedTiles;
+  search(0, slack);
+  return total;
+}
+
+// ------------------------------------------------------------------ report
+
+const seeds = Array.from({ length: BOARDS }, (_, i) => 4000 + i * 3);
+const median = (xs: number[]): number => {
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)] ?? 0;
+};
+const big = (n: number): string => (n >= CAP ? `>${(CAP / 1e6).toFixed(0)}M` : n.toLocaleString());
+
+console.log(`\nPACKING FEASIBILITY  —  ${BOARDS} board draws, 4x${COLS} zone\n`);
+console.log(
+  `${"shape set".padEnd(28)} ${"tiles".padStart(6)} ${"slack".padStart(6)} ${"solvable".padStart(9)} ${"median arrangements".padStart(21)} ${"front line".padStart(11)}`,
+);
+console.log("-".repeat(88));
+
+for (const set of SETS) {
+  const tiles = set.pieces.reduce((sum, p) => sum + p.count * p.cells.length, 0);
+  const counts: number[] = [];
+  let solvable = 0;
+  let frontLine = 0;
+
+  for (const seed of seeds) {
+    const blocked = blockedFor(seed);
+    const n = countPackings(set, blocked, CAP, false);
+    counts.push(n);
+    if (n > 0) solvable++;
+    if (countPackings(set, blocked, 1, true) > 0) frontLine++;
+  }
+
+  const free = 26;
+  console.log(
+    `${set.label.padEnd(28)} ${String(tiles).padStart(6)} ${String(free - tiles).padStart(6)} ${`${((solvable / BOARDS) * 100).toFixed(0)}%`.padStart(9)} ${big(median(counts)).padStart(21)} ${`${((frontLine / BOARDS) * 100).toFixed(0)}%`.padStart(11)}`,
+  );
+}
+
+console.log(
+  "\nfront line = share of boards where a unit can still be placed in EVERY\ncolumn of the rank nearest the enemy — the currently dominant shape.\n",
+);
