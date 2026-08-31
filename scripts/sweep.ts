@@ -57,6 +57,15 @@ const SPLASH = flag("splash", 0);
 if (SPLASH > 0) {
   (UNITS.mortar as { splashPercent: number }).splashPercent = SPLASH;
 }
+/**
+ * EXPERIMENT: the mortar currently reaches an enemy HQ from the safety of its
+ * own back rank. Shortening its reach should force it forward into infantry
+ * range to threaten the objective. --mortarrange 7
+ */
+const MORTAR_RANGE = flag("mortarrange", 0);
+if (MORTAR_RANGE > 0) {
+  (UNITS.mortar as { maxRange: number }).maxRange = MORTAR_RANGE;
+}
 const MORTAR_DMG = flag("mortardmg", 0);
 if (MORTAR_DMG > 0) {
   (UNITS.mortar as { damage: number }).damage = MORTAR_DMG;
@@ -93,6 +102,9 @@ const durations: number[] = [];
 const reasons = new Map<string, number>();
 const archetypeWins = new Map<string, { played: number; won: number; drawn: number }>();
 let totalDamage = 0;
+/** Which unit types actually damage an HQ — the objective decides matches. */
+const hqDamageBySource = new Map<UnitTypeId, number>();
+let hqDamageTotal = 0;
 let totalLaneOpenings = 0;
 let totalIdlePercent = 0;
 let draws = 0;
@@ -136,6 +148,19 @@ for (let i = 0; i < MATCHES; i++) {
     row.played++;
     if (result.winner === team) row.won++;
     else if (result.winner === "draw") row.drawn++;
+  }
+
+  // Attribute every point of HQ damage to the unit type that dealt it.
+  const typeOf = new Map(result.stats.units.map((u) => [u.id, u.type]));
+  const hqIds = new Set(
+    result.stats.units.filter((u) => u.type === "hq").map((u) => u.id),
+  );
+  for (const e of result.events) {
+    if (e.type !== "DAMAGE" || !hqIds.has(e.targetId)) continue;
+    const src = typeOf.get(e.sourceId);
+    if (src === undefined) continue;
+    hqDamageBySource.set(src, (hqDamageBySource.get(src) ?? 0) + e.amount);
+    hqDamageTotal += e.amount;
   }
 
   for (const unit of result.stats.units) {
@@ -198,6 +223,12 @@ for (const type of types) {
   console.log(
     `  ${UNITS[type].name.padEnd(14)} ${share.padStart(12)} ${kpm}       ${never.padStart(8)}   ${idle.padStart(9)}`,
   );
+}
+
+console.log("");
+console.log("WHO ACTUALLY KILLS HQs      (the objective is what decides it)");
+for (const [type, dmg] of [...hqDamageBySource].sort((a, b) => b[1] - a[1])) {
+  console.log(`  ${UNITS[type].name.padEnd(14)} ${pc(dmg, hqDamageTotal)} of all HQ damage`);
 }
 
 console.log("\nARCHETYPE WIN RATE       (a dominant shape here is a solved-formation warning)");

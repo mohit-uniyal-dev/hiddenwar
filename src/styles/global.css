@@ -27,9 +27,11 @@
   --ok: #4a7c2f;
   --warn: #a8341f;
 
-  --arc: rgba(58, 82, 74, 0.3);
-  --arc-line: rgba(32, 46, 40, 0.75);
-  --arc-blocked: rgba(120, 110, 95, 0.22);
+  /* Red means "this can be shot". Nothing else on the board uses it, so the
+     colour carries the meaning on its own. */
+  --arc: rgba(186, 58, 38, 0.24);
+  --arc-line: rgba(150, 40, 26, 0.7);
+  --arc-blocked: rgba(120, 110, 95, 0.2);
 
   /* Tall board: cap by height so the column never overflows the viewport. */
   --tile: min(3.4rem, calc((100dvh - 21rem) / var(--board-rows, 11)));
@@ -1343,12 +1345,14 @@ ul.objectives li.fail {
   content: "";
   position: absolute;
   inset: 2px;
-  border: 1px dashed rgba(150, 62, 40, 0.55);
+  /* Deliberately NOT red: red is reserved for "can be hit", and the minimum
+     range hole is the opposite of that. */
+  border: 1px dashed rgba(110, 98, 78, 0.5);
   border-radius: 2px;
   background: repeating-linear-gradient(
     135deg,
-    rgba(168, 52, 31, 0.16),
-    rgba(168, 52, 31, 0.16) 3px,
+    rgba(110, 98, 78, 0.14),
+    rgba(110, 98, 78, 0.14) 3px,
     transparent 3px,
     transparent 7px
   );
@@ -1390,11 +1394,11 @@ ul.objectives li.fail {
 }
 
 .legend .sw.dead {
-  border: 1px dashed rgba(150, 62, 40, 0.55);
+  border: 1px dashed rgba(110, 98, 78, 0.55);
   background: repeating-linear-gradient(
     135deg,
-    rgba(168, 52, 31, 0.2),
-    rgba(168, 52, 31, 0.2) 3px,
+    rgba(110, 98, 78, 0.2),
+    rgba(110, 98, 78, 0.2) 3px,
     transparent 3px,
     transparent 7px
   );
