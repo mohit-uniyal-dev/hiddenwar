@@ -8,8 +8,14 @@ import { canPlace } from "../game/models/deployment.ts";
 import type { Coord, Direction, PlacedUnit, UnitTypeId } from "../game/types.ts";
 import { activeKit, activePuzzle, useGame } from "../store/gameStore.ts";
 
-/** Movement past this many pixels turns a tap into a drag. */
-const DRAG_SLOP = 6;
+/**
+ * Movement past this many pixels turns a tap into a drag.
+ *
+ * Generous on purpose: a finger rarely lands and lifts on the exact same pixel,
+ * and treating that jitter as a drag is what made tapping a unit feel
+ * unreliable.
+ */
+const DRAG_SLOP = 10;
 
 interface DragState {
   readonly type: UnitTypeId;
@@ -103,10 +109,24 @@ export function DeploymentScreen() {
       const tile = tileFromPoint(event.clientX, event.clientY);
       setDrag((d) => {
         // A gesture that never moved is a tap — leave it to the click handler.
-        if (d?.moved && tile !== null) {
-          if (d.fromIndex === null) place(tile.row, tile.col);
-          else moveTo(d.fromIndex, tile.row, tile.col);
+        if (d === null || !d.moved || tile === null) return null;
+
+        if (d.fromIndex === null) {
+          place(tile.row, tile.col);
+          return null;
         }
+
+        // A drag that ends on the tile it started from is a tap with a shaky
+        // finger, not a move. Without this it "moved" the unit onto itself —
+        // a no-op that also skipped selection, so the arc preview appeared on
+        // some taps and not others.
+        const held = deployment.units[d.fromIndex];
+        if (held !== undefined && held.row === tile.row && held.col === tile.col) {
+          selectPlaced(d.fromIndex);
+          return null;
+        }
+
+        moveTo(d.fromIndex, tile.row, tile.col);
         return null;
       });
     };
@@ -121,7 +141,7 @@ export function DeploymentScreen() {
       window.removeEventListener("pointerup", finish);
       window.removeEventListener("pointercancel", cancel);
     };
-  }, [drag, place, moveTo]);
+  }, [drag, place, moveTo, selectPlaced, deployment.units]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

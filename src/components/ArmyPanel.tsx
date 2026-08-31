@@ -135,10 +135,10 @@ export function ArmyPanel({
           type="button"
           className="sheet-toggle"
           aria-expanded={open}
-          aria-label={open ? "Collapse panel" : "Expand panel"}
           onClick={() => setOpen((v) => !v)}
         >
-          {open ? "▾" : "▴"}
+          {open ? "Hide" : "Details"}
+          <span aria-hidden="true">{open ? "▾" : "▴"}</span>
         </button>
       </div>
 

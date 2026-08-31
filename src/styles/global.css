@@ -1592,19 +1592,7 @@ ul.objectives li.fail {
     background: var(--paper-line);
   }
 
-  .sheet-toggle {
-    display: block;
-    padding: 0.15rem 0.5rem;
-    margin: 0;
-    font-size: 0.8rem;
-    line-height: 1;
-    border-color: transparent;
-    background: transparent;
-    color: var(--ink-soft);
-  }
-
   /* Collapsed: roster and the primary action only. */
-  .army:not(.expanded) .stat-block,
   .army:not(.expanded) .row-actions.tools {
     display: none;
   }
@@ -1844,9 +1832,31 @@ ul.objectives li.fail {
   }
 }
 
-/* Bottom-sheet affordances — hidden until the sheet layout is active. */
-.sheet-grip,
+/* The grip is a phone affordance; the details toggle is for every size. */
+.sheet-grip {
+  display: none;
+}
+
 .sheet-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  background: transparent;
+  border-color: var(--paper-line);
+  color: var(--ink-soft);
+}
+
+.sheet-toggle:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+  box-shadow: none;
+}
+
+/* Unit stats stay behind the toggle everywhere; the tool row only folds away
+   on a phone, where the space genuinely matters. */
+.army:not(.expanded) .stat-block {
   display: none;
 }
 

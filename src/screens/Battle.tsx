@@ -19,6 +19,8 @@ const COUNTDOWN_MS = 2600;
 export function BattleScreen() {
   const result = useGame((s) => s.result);
   const finish = useGame((s) => s.finish);
+  const rematch = useGame((s) => s.rematch);
+  const backHome = useGame((s) => s.backHome);
 
   const [tick, setTick] = useState(0);
   const [speed, setSpeed] = useState(1);
@@ -109,6 +111,12 @@ export function BattleScreen() {
     result.winner === "draw" ? "Draw" : `${result.winner === "A" ? "Blue" : "Orange"} wins`;
   const reasonText = REASON_TEXT[result.reason] ?? result.reason;
 
+  const replay = () => {
+    setTick(0);
+    accumulated.current = 0;
+    setPaused(false);
+  };
+
   const status = finished
     ? { label: "BATTLE OVER", tone: "over" }
     : paused && countdown < 0
@@ -149,34 +157,51 @@ export function BattleScreen() {
         </Board>
       </div>
 
+      {/*
+        The bar swaps contents when the battle ends. Pause and the speed
+        controls are meaningless then — they were sitting there greyed out
+        while the two things a player actually wants next, another go and the
+        way out, were buried behind the report.
+      */}
       <div className="controls">
-        <button type="button" onClick={() => setPaused((p) => !p)} disabled={finished}>
-          {paused ? "Play" : "Pause"}
-        </button>
-        {[0.5, 1, 2].map((s) => (
-          <button
-            type="button"
-            key={s}
-            className={speed === s ? "on" : ""}
-            onClick={() => setSpeed(s)}
-            disabled={finished}
-          >
-            {s}×
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => {
-            setTick(0);
-            accumulated.current = 0;
-            setPaused(false);
-          }}
-        >
-          {finished ? "Watch again" : "Restart"}
-        </button>
-        <button type="button" className="primary" onClick={finish}>
-          {finished ? "Battle report →" : "Skip"}
-        </button>
+        {finished ? (
+          <>
+            <button type="button" onClick={replay}>
+              Watch again
+            </button>
+            <button type="button" onClick={backHome}>
+              Menu
+            </button>
+            <button type="button" onClick={rematch}>
+              Rematch
+            </button>
+            <button type="button" className="primary" onClick={finish}>
+              Report →
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" onClick={() => setPaused((p) => !p)}>
+              {paused ? "Play" : "Pause"}
+            </button>
+            {[0.5, 1, 2].map((s) => (
+              <button
+                type="button"
+                key={s}
+                className={speed === s ? "on" : ""}
+                onClick={() => setSpeed(s)}
+              >
+                {s}×
+              </button>
+            ))}
+            <button type="button" onClick={replay}>
+              Restart
+            </button>
+            <button type="button" className="primary" onClick={finish}>
+              Skip
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
