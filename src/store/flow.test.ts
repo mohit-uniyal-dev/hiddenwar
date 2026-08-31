@@ -16,10 +16,23 @@ import { DIFFICULTY_POOLS } from "../game/content/formations.ts";
 import { evaluatePuzzle, puzzleById } from "../game/content/puzzles.ts";
 import { arcPreview } from "../game/engine/preview.ts";
 import { simulateBattle } from "../game/engine/simulate.ts";
-import { validateDeployment } from "../game/models/deployment.ts";
+import { canPlace, validateDeployment } from "../game/models/deployment.ts";
 import { activeKit, isComplete, useGame } from "./gameStore.ts";
 
 const store = () => useGame.getState();
+
+/** The first tile in Blue's zone that is neither terrain nor occupied. */
+function freeTile(): { row: number; col: number } {
+  const st = store();
+  for (let row = BOARD.teamARows[0]; row <= BOARD.teamARows[1]; row++) {
+    for (let col = 0; col < BOARD.cols; col++) {
+      if (canPlace("A", "soldier", row, col, st.deployments.A.units, -1, st.craters)) {
+        return { row, col };
+      }
+    }
+  }
+  throw new Error("no legal tile");
+}
 
 describe("hotseat flow", () => {
   beforeEach(() => {
@@ -202,11 +215,14 @@ describe("hotseat flow", () => {
     // Only the two automatic nodes are on the board.
     expect(store().deployments.A.units).toHaveLength(2);
 
-    store().place(5, 3);
+    // Craters are drawn per match, so a hardcoded tile can be terrain. Find a
+    // legal one instead of assuming — otherwise this test is seed-flaky.
+    const free = freeTile();
+    store().place(free.row, free.col);
     expect(store().deployments.A.units).toHaveLength(3);
 
     // One unit per tile, hard rule.
-    store().place(5, 3);
+    store().place(free.row, free.col);
     expect(store().deployments.A.units).toHaveLength(3);
   });
 
@@ -222,13 +238,15 @@ describe("hotseat flow", () => {
 
   it("repositions a placed unit by moving it to an empty tile", () => {
     store().selectType("soldier");
-    store().place(5, 3);
+    const from = freeTile();
+    store().place(from.row, from.col);
     const index = store().deployments.A.units.findIndex((u) => u.type === "soldier");
 
-    // The HQ occupies a random 2x2 footprint on the rear ranks (rows 7-8), so
-    // rows 5-6 are always clear and this test cannot become seed-dependent.
-    store().moveTo(index, 6, 4);
-    expect(store().deployments.A.units[index]).toMatchObject({ row: 6, col: 4 });
+    // Terrain and the node columns are both drawn per match, so the target has
+    // to be found rather than assumed or this test is seed-flaky.
+    const to = freeTile();
+    store().moveTo(index, to.row, to.col);
+    expect(store().deployments.A.units[index]).toMatchObject(to);
 
     // Facing survives the move — repositioning is not a re-placement.
     expect(store().deployments.A.units[index]?.facing).toBe("N");
@@ -248,13 +266,14 @@ describe("hotseat flow", () => {
     expect(store().deployments.A.units[index]).toEqual(before);
   });
 
-  it("lets a unit shuffle within its own footprint", () => {
+  it("lets a unit move onto the tile it already occupies", () => {
     store().selectType("soldier");
-    store().place(5, 3);
+    const from = freeTile();
+    store().place(from.row, from.col);
     const index = store().deployments.A.units.findIndex((u) => u.type === "soldier");
-    // A one-tile nudge must not collide with where the unit already stands.
-    store().moveTo(index, 6, 4);
-    expect(store().deployments.A.units[index]).toMatchObject({ row: 6, col: 4 });
+    // Moving onto its OWN tile must be legal, not read as a self-collision.
+    store().moveTo(index, from.row, from.col);
+    expect(store().deployments.A.units[index]).toMatchObject(from);
   });
 
   it("never lets an HQ node be dragged off its anchor", () => {
@@ -266,7 +285,9 @@ describe("hotseat flow", () => {
 
   it("rotates a placed unit through all four facings", () => {
     store().selectType("soldier");
-    store().place(5, 3);
+    // Terrain is drawn per match, so the tile has to be found, not assumed.
+    const at = freeTile();
+    store().place(at.row, at.col);
     const index = store().deployments.A.units.findIndex((u) => u.type === "soldier");
     store().selectPlaced(index);
     const seen = new Set<string>();

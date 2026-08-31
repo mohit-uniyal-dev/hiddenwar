@@ -9,7 +9,7 @@
 import { BOARD, RULES } from "../config/gameConfig.ts";
 import { UNITS } from "../config/units.ts";
 import type { Rng } from "../rng/mulberry32.ts";
-import type { Deployment, Shell, Team, Unit, VictoryReason, Winner } from "../types.ts";
+import type { Coord, Deployment, Shell, Team, Unit, VictoryReason, Winner } from "../types.ts";
 import type { BattleEvent } from "./events.ts";
 import { footprint } from "./geometry.ts";
 
@@ -20,6 +20,8 @@ export interface BattleState {
   readonly units: Unit[];
   /** row * cols + col -> unit id, or -1. */
   readonly occupancy: Int32Array;
+  /** Indestructible terrain. Blocks line of sight for both sides. */
+  readonly craters: ReadonlySet<number>;
   shells: Shell[];
   readonly events: BattleEvent[];
   readonly rng: Rng;
@@ -36,7 +38,12 @@ export function tileIndex(row: number, col: number): number {
   return row * BOARD.cols + col;
 }
 
-export function buildState(a: Deployment, b: Deployment, rng: Rng): BattleState {
+export function buildState(
+  a: Deployment,
+  b: Deployment,
+  rng: Rng,
+  craters: readonly Coord[] = [],
+): BattleState {
   const units: Unit[] = [];
   const occupancy = new Int32Array(BOARD.rows * BOARD.cols).fill(EMPTY);
 
@@ -81,6 +88,7 @@ export function buildState(a: Deployment, b: Deployment, rng: Rng): BattleState 
     tick: 0,
     units,
     occupancy,
+    craters: new Set(craters.map((c) => tileIndex(c.row, c.col))),
     shells: [],
     events: [],
     rng,
@@ -106,6 +114,7 @@ export function unitAt(state: BattleState, row: number, col: number): Unit | nul
  * block for BOTH teams — walling yourself in means you cannot shoot out (§B.4).
  */
 export function isBlockerAt(state: BattleState, row: number, col: number): boolean {
+  if (state.craters.has(tileIndex(row, col))) return true;
   const unit = unitAt(state, row, col);
   return unit !== null && unit.spec.blocksLineOfSight === true;
 }

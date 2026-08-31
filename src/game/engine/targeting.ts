@@ -12,6 +12,7 @@
  *      function over ALL currently valid targets and fires that tick (§B.7).
  */
 
+import { BOARD } from "../config/gameConfig.ts";
 import type { Coord, Unit } from "../types.ts";
 import { footprint } from "./geometry.ts";
 import {
@@ -54,6 +55,7 @@ function blockerPredicate(
   target: Unit,
 ): (row: number, col: number) => boolean {
   return (row, col) => {
+    if (state.craters.has(row * BOARD.cols + col)) return true;
     const occupant = unitAt(state, row, col);
     if (occupant === null) return false;
     if (occupant.id === shooter.id || occupant.id === target.id) return false;
@@ -79,6 +81,8 @@ function lineCandidates(state: BattleState, unit: Unit): Unit[] {
   for (let d = 1; d <= max; d++) {
     const row = unit.row + dr * d;
     const col = unit.col + dc * d;
+    // Craters stop a ray exactly as a sandbag does, but can never be shot away.
+    if (state.craters.has(row * BOARD.cols + col)) break;
     const occupant = unitAt(state, row, col);
     if (occupant === null) continue;
 
@@ -261,6 +265,7 @@ export function visibleTiles(state: BattleState, unit: Unit): Coord[] {
   for (const tile of patternTiles(unit)) {
     const occupant = unitAt(state, tile.row, tile.col);
     const predicate = (row: number, col: number): boolean => {
+      if (state.craters.has(row * BOARD.cols + col)) return true;
       const u = unitAt(state, row, col);
       if (u === null) return false;
       if (u.id === unit.id) return false;

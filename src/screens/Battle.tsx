@@ -21,6 +21,7 @@ export function BattleScreen() {
   const finish = useGame((s) => s.finish);
   const rematch = useGame((s) => s.rematch);
   const backHome = useGame((s) => s.backHome);
+  const craters = useGame((s) => s.craters);
 
   const [tick, setTick] = useState(0);
   const [speed, setSpeed] = useState(1);
@@ -149,7 +150,7 @@ export function BattleScreen() {
       )}
 
       <div className="board-wrap">
-        <Board units={units}>
+        <Board units={units} craters={craters}>
           <FxLayer frame={frame} />
           {countdown >= 0 && (
             <div className="countdown">{countdown === 0 ? "BATTLE" : countdown}</div>

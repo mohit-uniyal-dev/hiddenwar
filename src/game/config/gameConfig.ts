@@ -4,6 +4,7 @@
  */
 
 import { mulberry32 } from "../rng/mulberry32.ts";
+import type { Coord } from "../types.ts";
 
 export const CONFIG_VERSION = "1.1.0";
 
@@ -182,4 +183,54 @@ export function zoneOwner(row: number): "A" | "B" | null {
   if (row >= BOARD.teamBRows[0] && row <= BOARD.teamBRows[1]) return "B";
   if (row >= BOARD.teamARows[0] && row <= BOARD.teamARows[1]) return "A";
   return null;
+}
+
+/**
+ * Craters — permanent, indestructible cover drawn per match.
+ *
+ * They exist to stop any single formation from being the cached answer: a broad
+ * even line cannot cover eight columns when three of them are blocked, and each
+ * seed poses a different geometric question. They also make two players' boards
+ * *look* different, which matters more than it sounds — visual convergence is
+ * identity death for an expressive system.
+ *
+ * The pattern is rotated 180 degrees rather than reflected, so each side faces
+ * the same relative problem from its own end of the board. Craters block line of
+ * sight for both sides; the mortar ignores them, as it ignores all cover.
+ *
+ * Excluded from the rear ranks, so they can never pre-shield an objective, and
+ * from node columns, so the approach to a node is never blocked before a shot is
+ * fired.
+ */
+export function terrainForSeed(seed: number, anchors: HqAnchors): Coord[] {
+  // A stream of its own, so adding or removing craters cannot shift the HQ draw.
+  const rng = mulberry32((seed ^ 0x7f4a7c15) >>> 0);
+  const count = 2 + rng.nextInt(2); // 2 or 3 per side
+
+  const blockedCols = new Set<number>();
+  for (const side of [anchors.A, anchors.B]) for (const n of side) blockedCols.add(n.col);
+
+  // Blue's forward rows only; each pick is mirrored into Orange's half.
+  const rows: number[] = [BOARD.teamARows[0], BOARD.teamARows[0] + 1];
+  const candidates: Coord[] = [];
+  for (const row of rows) {
+    for (let col = 0; col < BOARD.cols; col++) {
+      if (blockedCols.has(col)) continue;
+      candidates.push({ row, col });
+    }
+  }
+
+  const craters: Coord[] = [];
+  const taken = new Set<number>();
+  for (let i = 0; i < count && candidates.length > 0; i++) {
+    const pick = candidates[rng.nextInt(candidates.length)];
+    if (pick === undefined) break;
+    const key = pick.row * BOARD.cols + pick.col;
+    if (taken.has(key)) continue;
+    taken.add(key);
+    craters.push(pick);
+    // 180-degree rotation onto the other half.
+    craters.push({ row: BOARD.rows - 1 - pick.row, col: BOARD.cols - 1 - pick.col });
+  }
+  return craters;
 }

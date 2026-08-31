@@ -9,7 +9,7 @@
  * every opponent is dominant and needs a structural answer, not a tuning pass.
  */
 
-import { BOARD, hqAnchorsForSeed } from "../src/game/config/gameConfig.ts";
+import { BOARD, hqAnchorsForSeed, terrainForSeed } from "../src/game/config/gameConfig.ts";
 import { ARCHETYPES, generateFormation } from "../src/game/content/formations.ts";
 import { UNITS } from "../src/game/config/units.ts";
 import { simulateBattle } from "../src/game/engine/simulate.ts";
@@ -67,10 +67,12 @@ for (const rowArch of ARCHETYPES) {
             B: { row: base.B.row, col: mulberry32(seed * 40503 + 7).nextInt(BOARD.cols - 1) },
           }
         : base;
+      const craters = terrainForSeed(seed, anchors);
       const r = simulateBattle({
-        playerA: generateFormation("A", anchors, rowArch, mulberry32(seed)),
-        playerB: generateFormation("B", anchors, colArch, mulberry32(seed + 991)),
+        playerA: generateFormation("A", anchors, rowArch, mulberry32(seed), craters),
+        playerB: generateFormation("B", anchors, colArch, mulberry32(seed + 991), craters),
         seed,
+        craters,
       });
       if (r.winner === "A") w++;
       else if (r.winner === "draw") drew++;

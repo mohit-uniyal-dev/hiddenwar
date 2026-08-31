@@ -9,7 +9,7 @@
 import { BOARD, isInsideBoard, zoneOwner } from "../config/gameConfig.ts";
 import { MVP_ARMY, type Roster, UNITS } from "../config/units.ts";
 import { footprint } from "../engine/geometry.ts";
-import type { Deployment, PlacedUnit, Team, UnitTypeId } from "../types.ts";
+import type { Coord, Deployment, PlacedUnit, Team, UnitTypeId } from "../types.ts";
 
 export interface ValidationResult {
   readonly ok: boolean;
@@ -43,6 +43,7 @@ export function canPlace(
   col: number,
   existing: readonly PlacedUnit[],
   ignoreIndex = -1,
+  craters: readonly Coord[] = [],
 ): boolean {
   const tiles = placementTiles(type, row, col);
   if (tiles === null) return false;
@@ -52,6 +53,8 @@ export function canPlace(
   }
 
   const occupied = new Set<number>();
+  // Craters are terrain: permanent, and nothing may stand on them.
+  for (const c of craters) occupied.add(c.row * BOARD.cols + c.col);
   existing.forEach((unit, index) => {
     if (index === ignoreIndex) return;
     for (const t of footprint(

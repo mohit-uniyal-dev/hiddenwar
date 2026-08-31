@@ -37,6 +37,7 @@ export function arcPreview(
   team: Team,
   ownUnits: readonly PlacedUnit[],
   candidate: PlacedUnit,
+  craters: readonly Coord[] = [],
 ): ArcPreview {
   const roster = ownUnits.includes(candidate) ? [...ownUnits] : [...ownUnits, candidate];
   const index = roster.indexOf(candidate);
@@ -45,7 +46,9 @@ export function arcPreview(
   const own: Deployment = { team, units: roster };
   const enemy: Deployment = { team: team === "A" ? "B" : "A", units: [] };
   const state =
-    team === "A" ? buildState(own, enemy, mulberry32(0)) : buildState(enemy, own, mulberry32(0));
+    team === "A"
+      ? buildState(own, enemy, mulberry32(0), craters)
+      : buildState(enemy, own, mulberry32(0), craters);
 
   const unit = state.units.find(
     (u) => u.team === team && u.row === candidate.row && u.col === candidate.col,

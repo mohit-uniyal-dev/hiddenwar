@@ -17,7 +17,7 @@ import { BOARD, type HqAnchors } from "../config/gameConfig.ts";
 import { PLACEABLE_ARMY } from "../config/units.ts";
 import { canPlace } from "../models/deployment.ts";
 import type { Rng } from "../rng/mulberry32.ts";
-import type { Deployment, Direction, PlacedUnit, Team, UnitTypeId } from "../types.ts";
+import type { Coord, Deployment, Direction, PlacedUnit, Team, UnitTypeId } from "../types.ts";
 
 export type ArchetypeId =
   | "line"
@@ -190,6 +190,7 @@ export function generateFormation(
   anchors: HqAnchors,
   archetype: Archetype,
   rng: Rng,
+  craters: readonly Coord[] = [],
 ): Deployment {
   const nodes = anchors[team];
   const units: PlacedUnit[] = nodes.map((a) => ({
@@ -204,7 +205,7 @@ export function generateFormation(
     for (const depth of depths) {
       const row = rowAtDepth(team, depth);
       for (const col of cols) {
-        if (canPlace(team, type, row, col, units)) {
+        if (canPlace(team, type, row, col, units, -1, craters)) {
           units.push({ type, row, col, facing: type === "sandbag" ? "N" : facing });
           return true;
         }

@@ -141,7 +141,14 @@ export const UNITS: Record<UnitTypeId, UnitSpec> = {
   sandbag: {
     id: "sandbag",
     name: "Sandbag",
-    hp: 60,
+    /*
+      90, not 60, and six of them rather than eight.
+      Lane openings were running at ~10 a battle against a design target of 2-4.
+      A mid-battle event that happens ten times is texture, not a beat — scarcity
+      is the resource. Fewer, tougher walls also free two tiles of a zone that
+      craters are about to take back.
+    */
+    hp: 90,
     unitClass: "structure",
     value: 1,
     cost: 3,
@@ -193,7 +200,7 @@ export const MVP_ARMY: Roster = [
   { type: "atgun", count: 1 },
   { type: "tank", count: 1 },
   { type: "mortar", count: 1 },
-  { type: "sandbag", count: 8 },
+  { type: "sandbag", count: 6 },
   // Two nodes, and BOTH must fall. Total structure HP is unchanged at 200.
   { type: "hq", count: 2 },
 ];

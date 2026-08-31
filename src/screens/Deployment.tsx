@@ -70,6 +70,7 @@ export function DeploymentScreen() {
   const autoFill = useGame((s) => s.autoFill);
   const ready = useGame((s) => s.ready);
   const backHome = useGame((s) => s.backHome);
+  const craters = useGame((s) => s.craters);
 
   const kit = useMemo(() => activeKit({ mode, puzzleId }), [mode, puzzleId]);
   const puzzle = useMemo(() => activePuzzle({ mode, puzzleId }), [mode, puzzleId]);
@@ -188,6 +189,7 @@ export function DeploymentScreen() {
       pending.col,
       deployment.units,
       drag?.fromIndex ?? -1,
+      craters,
     );
 
   const preview = useMemo(() => {
@@ -197,11 +199,12 @@ export function DeploymentScreen() {
       const lifted = drag?.fromIndex;
       const others =
         lifted == null ? deployment.units : deployment.units.filter((_, i) => i !== lifted);
-      return arcPreview(activeTeam, others, pending);
+      return arcPreview(activeTeam, others, pending, craters);
     }
-    if (selectedUnit !== null) return arcPreview(activeTeam, deployment.units, selectedUnit);
+    if (selectedUnit !== null)
+      return arcPreview(activeTeam, deployment.units, selectedUnit, craters);
     return { covered: [], blocked: [], deadZone: [] };
-  }, [activeTeam, deployment.units, selectedUnit, pending, pendingLegal, drag?.fromIndex]);
+  }, [activeTeam, deployment.units, selectedUnit, pending, pendingLegal, drag?.fromIndex, craters]);
 
   const lifted = drag?.moved ? drag.fromIndex : null;
 
@@ -304,6 +307,7 @@ export function DeploymentScreen() {
           arc={preview.covered}
           arcBlocked={preview.blocked}
           arcDead={preview.deadZone}
+          craters={craters}
           interactiveZone={activeTeam}
           hovered={dragTile ?? hovered}
           hoverLegal={pending === null ? true : pendingLegal}

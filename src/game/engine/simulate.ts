@@ -18,7 +18,7 @@
 
 import { CONFIG_VERSION, TICKS_PER_SECOND } from "../config/gameConfig.ts";
 import { mulberry32 } from "../rng/mulberry32.ts";
-import type { DamageType, Deployment, Shell, Team, Unit } from "../types.ts";
+import type { Coord, DamageType, Deployment, Shell, Team, Unit } from "../types.ts";
 import { computeDamage, computeSplashDamage } from "./damage.ts";
 import type { BattleEvent } from "./events.ts";
 import { footprint, splashArea } from "./geometry.ts";
@@ -32,6 +32,8 @@ export interface SimulateInput {
   readonly playerA: Deployment;
   readonly playerB: Deployment;
   readonly seed: number;
+  /** Indestructible cover for this match. Empty unless the caller supplies it. */
+  readonly craters?: readonly Coord[];
 }
 
 export interface BattleResult {
@@ -55,7 +57,7 @@ interface PendingDamage {
 
 export function simulateBattle(input: SimulateInput): BattleResult {
   const rng = mulberry32(input.seed);
-  const state = buildState(input.playerA, input.playerB, rng);
+  const state = buildState(input.playerA, input.playerB, rng, input.craters ?? []);
 
   while (!state.ended) {
     runTick(state);

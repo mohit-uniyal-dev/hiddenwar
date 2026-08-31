@@ -61,7 +61,7 @@ describe("time to kill (§C.4)", () => {
     expect(result.stats.units.every((unit) => !unit.survived)).toBe(true);
   });
 
-  it("tank one-shots a sandbag at tick 28 (1.4s) and opens a lane", () => {
+  it("tank breaches a sandbag in two shells, opening a lane at tick 84 (4.2s)", () => {
     const result = simulateBattle({
       playerA: deploy("A", [u("tank", 7, 3, "N"), idleGuard("A")]),
       playerB: deploy("B", [u("sandbag", 4, 3), idleGuard("B")]),
@@ -69,11 +69,17 @@ describe("time to kill (§C.4)", () => {
     });
     const hits = damageEvents(result.events);
     expect(hits[0]?.tick).toBe(28);
-    expect(hits[0]?.amount).toBe(60);
-    // The breach cadence is the drama engine (§D.2) — assert the event exists.
+    expect(hits[0]?.amount).toBe(60); // 40 heavy x1.5 vs structure
+
+    /*
+      Sandbags went 8 x 60 HP to 6 x 90, so a tank no longer removes a wall in
+      one shell. That was deliberate: lane openings were running at ~10 a battle
+      against a design target of 2-4, and an event that happens ten times is
+      texture rather than a beat. Two shells at 2.8s is 4.2s a wall.
+    */
     const breach = result.events.find((e) => e.type === "BLOCKER_BREACHED");
     expect(breach).toBeDefined();
-    expect(breach?.tick).toBe(28);
+    expect(breach?.tick).toBe(84);
     expect(result.stats.laneOpenings).toBe(1);
   });
 

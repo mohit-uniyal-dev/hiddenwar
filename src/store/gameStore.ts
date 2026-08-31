@@ -5,7 +5,12 @@
  */
 
 import { create } from "zustand";
-import { HQ_ANCHOR, type HqAnchors, hqAnchorsForSeed } from "../game/config/gameConfig.ts";
+import {
+  HQ_ANCHOR,
+  type HqAnchors,
+  hqAnchorsForSeed,
+  terrainForSeed,
+} from "../game/config/gameConfig.ts";
 import { MVP_ARMY, PLACEABLE_ARMY, type Roster, UNITS } from "../game/config/units.ts";
 import {
   type ArchetypeId,
@@ -18,7 +23,7 @@ import { type Puzzle, puzzleById } from "../game/content/puzzles.ts";
 import { type BattleResult, simulateBattle } from "../game/engine/simulate.ts";
 import { canPlace, emptyDeployment, expectedCounts } from "../game/models/deployment.ts";
 import { mulberry32 } from "../game/rng/mulberry32.ts";
-import type { Deployment, Direction, PlacedUnit, Team, UnitTypeId } from "../game/types.ts";
+import type { Coord, Deployment, Direction, PlacedUnit, Team, UnitTypeId } from "../game/types.ts";
 
 export type Phase = "home" | "deploy" | "handoff" | "battle" | "results";
 export type Mode = "hotseat" | "ai" | "puzzle";
@@ -36,6 +41,8 @@ interface GameState {
    */
   matchSeed: number;
   hqAnchors: HqAnchors;
+  /** Indestructible cover drawn with the board, identical for both players. */
+  craters: readonly Coord[];
 
   /** Whose deployment screen is showing. Always "A" outside hotseat. */
   activeTeam: Team;
@@ -154,6 +161,7 @@ export const useGame = create<GameState>((set, get) => ({
   activeTeam: "A",
   matchSeed: 0,
   hqAnchors: HQ_ANCHOR,
+  craters: [],
   deployments: { A: emptyDeployment("A"), B: emptyDeployment("B") },
   lastFormation: { A: null, B: null },
   ...FRESH,
@@ -163,6 +171,7 @@ export const useGame = create<GameState>((set, get) => ({
     // hold, changes every time (§41 — map variety, not dice).
     const matchSeed = newSeed();
     const hqAnchors = hqAnchorsForSeed(matchSeed);
+    const craters = terrainForSeed(matchSeed, hqAnchors);
     set({
       phase: "deploy",
       mode: "hotseat",
@@ -172,6 +181,7 @@ export const useGame = create<GameState>((set, get) => ({
       activeTeam: "A",
       matchSeed,
       hqAnchors,
+      craters,
       deployments: { A: withHq("A", hqAnchors), B: withHq("B", hqAnchors) },
       lastFormation: { A: null, B: null },
       ...FRESH,
@@ -187,10 +197,11 @@ export const useGame = create<GameState>((set, get) => ({
   startAi: (difficulty) => {
     const matchSeed = newSeed();
     const hqAnchors = hqAnchorsForSeed(matchSeed);
+    const craters = terrainForSeed(matchSeed, hqAnchors);
     const rng = mulberry32(matchSeed ^ 0x5bf03635);
     const pool = DIFFICULTY_POOLS[difficulty];
     const archetypeId = pool[rng.nextInt(pool.length)] ?? "line";
-    const enemy = generateFormation("B", hqAnchors, archetypeById(archetypeId), rng);
+    const enemy = generateFormation("B", hqAnchors, archetypeById(archetypeId), rng, craters);
 
     set({
       phase: "deploy",
@@ -201,6 +212,7 @@ export const useGame = create<GameState>((set, get) => ({
       activeTeam: "A",
       matchSeed,
       hqAnchors,
+      craters,
       // Their army is decided now but stays hidden until the reveal, exactly
       // as a human opponent's would.
       deployments: { A: withHq("A", hqAnchors), B: enemy },
@@ -220,8 +232,9 @@ export const useGame = create<GameState>((set, get) => ({
       matchSeed: newSeed(),
       aiDifficulty: null,
       aiArchetype: null,
-      // Puzzles are designed scenarios: their HQ sits where the author put it.
+      // Puzzles are designed scenarios: fixed ground, fixed objective.
       hqAnchors: HQ_ANCHOR,
+      craters: [],
       // A puzzle's enemy is VISIBLE the whole time — that is the point of it.
       // `fixed` holds any pieces the scenario starts you with.
       deployments: { A: { team: "A", units: [...(puzzle.fixed ?? [])] }, B: puzzle.enemy },
@@ -282,7 +295,7 @@ export const useGame = create<GameState>((set, get) => ({
     const kit = activeKit(state);
     const deployment = deployments[activeTeam];
     if ((remaining(deployment, kit).get(selectedType) ?? 0) <= 0) return;
-    if (!canPlace(activeTeam, selectedType, row, col, deployment.units)) return;
+    if (!canPlace(activeTeam, selectedType, row, col, deployment.units, -1, state.craters)) return;
 
     const placed: PlacedUnit = {
       type: selectedType,
@@ -307,7 +320,7 @@ export const useGame = create<GameState>((set, get) => ({
     if (unit.type === "hq") return;
     // `ignoreIndex` lets a unit overlap its own current tiles, so a one-tile
     // nudge is legal rather than colliding with where it already stands.
-    if (!canPlace(activeTeam, unit.type, row, col, deployment.units, index)) return;
+    if (!canPlace(activeTeam, unit.type, row, col, deployment.units, index, get().craters)) return;
 
     const units = deployment.units.map((u, i) => (i === index ? { ...u, row, col } : u));
     set({ deployments: { ...deployments, [activeTeam]: { ...deployment, units } } });
@@ -356,7 +369,7 @@ export const useGame = create<GameState>((set, get) => ({
         for (const row of rows) {
           if (placed) break;
           for (let col = 0; col < 12; col++) {
-            if (canPlace(activeTeam, type, row, col, units)) {
+            if (canPlace(activeTeam, type, row, col, units, -1, get().craters)) {
               units.push({ type, row, col, facing: defaultFacing(activeTeam) });
               placed = true;
               break;
@@ -384,6 +397,7 @@ export const useGame = create<GameState>((set, get) => ({
     const result = simulateBattle({
       playerA: deployments.A,
       playerB: deployments.B,
+      craters: get().craters,
       // The same seed that drew the HQ position, so one number reproduces the
       // whole match — battlefield and battle alike.
       seed: get().matchSeed,

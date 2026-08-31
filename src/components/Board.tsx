@@ -20,11 +20,13 @@ export interface RenderUnit {
 interface Props {
   units: RenderUnit[];
   /** Tiles the selected weapon covers — drawn as grease-pencil marks. */
-  arc?: Coord[];
+  arc?: readonly Coord[];
   /** Tiles inside the footprint that cover shadows out. */
-  arcBlocked?: Coord[];
+  arcBlocked?: readonly Coord[];
   /** Tiles too close to hit — inside minimum range. */
-  arcDead?: Coord[];
+  arcDead?: readonly Coord[];
+  /** Indestructible terrain. Blocks sight, cannot be built on or shot away. */
+  craters?: readonly Coord[];
   /** Deployment zone that accepts clicks, or null in battle. */
   interactiveZone?: Team | null;
   hovered?: Coord | null;
@@ -44,6 +46,7 @@ export function Board({
   arc = [],
   arcBlocked = [],
   arcDead = [],
+  craters = [],
   interactiveZone = null,
   hovered = null,
   hoverLegal = true,
@@ -57,6 +60,7 @@ export function Board({
   const arcSet = new Set(arc.map(key));
   const blockedSet = new Set(arcBlocked.map(key));
   const deadSet = new Set(arcDead.map(key));
+  const craterSet = new Set(craters.map(key));
   const byTile = new Map<string, RenderUnit>();
   for (const u of units) byTile.set(key(u), u);
 
@@ -75,6 +79,7 @@ export function Board({
         arcSet.has(k) ? "arc" : "",
         blockedSet.has(k) ? "arc-blocked" : "",
         !arcSet.has(k) && deadSet.has(k) ? "arc-dead" : "",
+        craterSet.has(k) ? "crater" : "",
         canInteract ? (hoverLegal ? "placeable" : "illegal") : "",
         isHovered ? "hovered" : "",
       ]
