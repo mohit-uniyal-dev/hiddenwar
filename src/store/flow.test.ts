@@ -7,6 +7,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { BOARD, NODE_SEPARATIONS, hqAnchorsForSeed, zoneOwner } from "../game/config/gameConfig.ts";
+import { UNITS } from "../game/config/units.ts";
 import { DIFFICULTY_POOLS } from "../game/content/formations.ts";
 import { evaluatePuzzle, puzzleById } from "../game/content/puzzles.ts";
 import { arcPreview } from "../game/engine/preview.ts";
@@ -128,6 +129,43 @@ describe("hotseat flow", () => {
     // the objective would break edit-and-rerun (§D.2).
     expect(store().hqAnchors).toEqual(before);
     expect(store().deployments.A.units.filter((u) => u.type === "hq")).toHaveLength(2);
+  });
+
+  it("never drops a unit inside a node, or off the board, on any draw", () => {
+    /*
+      Playtest report: auto-fill looked like it was putting units inside the HQ.
+
+      It was not — the HQ TOKEN was drawn 2 tiles wide when a node is 1 wide by
+      2 deep, so the graphic covered a column the node did not occupy. This
+      asserts the underlying truth across many board draws, so if the placement
+      rules ever do drift, it fails here rather than being argued about from a
+      screenshot.
+
+      Standing next to your own node is legal and always was — that is what a
+      lane guard is. There is no minimum distance rule, deliberately.
+    */
+    for (let i = 0; i < 60; i++) {
+      useGame.getState().startHotseat();
+      store().autoFill();
+      const occupied = new Map<number, string>();
+      for (const unit of store().deployments.A.units) {
+        const { width, height } = UNITS[unit.type];
+        for (let r = unit.row; r < unit.row + height; r++) {
+          for (let c = unit.col; c < unit.col + width; c++) {
+            expect(zoneOwner(r)).toBe("A");
+            expect(c).toBeGreaterThanOrEqual(0);
+            expect(c).toBeLessThan(BOARD.cols);
+            const key = r * BOARD.cols + c;
+            expect(occupied.get(key)).toBeUndefined();
+            occupied.set(key, unit.type);
+          }
+        }
+      }
+      // And never on terrain.
+      for (const crater of store().craters) {
+        expect(occupied.has(crater.row * BOARD.cols + crater.col)).toBe(false);
+      }
+    }
   });
 
   it("does not hand the player an HQ to place", () => {
@@ -290,19 +328,24 @@ describe("hotseat flow", () => {
     expect(store().deployments.A.units.filter((u) => u.type === "hq")).toEqual(before);
   });
 
-  it("rotates a placed unit through all four facings", () => {
-    store().selectType("soldier");
-    // Terrain is drawn per match, so the tile has to be found, not assumed.
-    const at = freeTile();
-    store().place(at.row, at.col);
-    const index = store().deployments.A.units.findIndex((u) => u.type === "soldier");
-    store().selectPlaced(index);
-    const seen = new Set<string>();
-    for (let i = 0; i < 4; i++) {
-      seen.add(store().deployments.A.units[index]?.facing ?? "");
-      store().rotateSelected();
+  it("points every weapon at the enemy, with no way to point it anywhere else", () => {
+    /*
+      Facing used to be a choice and it was a trap. Summed over every legal
+      tile, a soldier, AT gun or tank facing anywhere but forward covers ZERO
+      enemy tiles, and a machine gun covers 9 against 192 — so three of the
+      four options were strictly dead and the fourth was nearly so.
+    */
+    store().autoFill();
+    for (const unit of store().deployments.A.units) {
+      expect(unit.facing).toBe("N");
     }
-    expect(seen).toEqual(new Set(["N", "E", "S", "W"]));
+    store().ready();
+    store().autoFill();
+    for (const unit of store().deployments.B.units) {
+      // Nodes are placed by the board, not the player, and never fire.
+      if (unit.type === "hq") continue;
+      expect(unit.facing).toBe("S");
+    }
   });
 });
 

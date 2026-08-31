@@ -245,6 +245,45 @@ cheaply. That is the number to watch next, not the archetype table.
 - The time cap has been 45s since the twin-node change, but the UI still said
   60s in two places.
 
+### Playtest fixes, and the one bug behind three of them
+
+**The HQ token was drawn 2 tiles wide.** The CSS was written for a 2x2 HQ and
+never changed when a node became 1 wide by 2 deep, so every node was painted a
+full column wider than it stood. That single mistake produced three separate
+playtest reports: a node in the last column hung off the board edge; units
+legally placed in the next column looked like they were sitting inside the HQ;
+and drags aimed at that column landed elsewhere, because `elementFromPoint`
+walks up to the *anchor* tile of whatever token is painted on top. Tokens are
+now sized from their own spec (`--unit-w` / `--unit-h`), so it cannot drift
+again. A test places auto-fill armies across 60 board draws and asserts nothing
+ever overlaps a node, leaves its zone, or lands on terrain.
+
+**Drag targeting no longer hit-tests at all.** It divides the board's bounding
+rectangle, which is exact and cannot be fooled by anything drawn over the grid —
+an overhanging token, a selected piece scaled up by 8%.
+
+**Facing is gone.** There were two controls for it, one labelled "Next" and one
+"Rotate", and neither was worth using: summed over every legal tile, a soldier,
+AT gun or tank facing anywhere but forward covers **zero** enemy tiles, and a
+machine gun covers **9 against 192**. Every weapon now points at the enemy, and
+the direction chevron on each token went with it. `facing` stays in the data
+model because the engine resolves arcs with it; nothing chooses it any more.
+
+**Tiles were sized for eleven rows on a nine-row board.** `--tile` is declared
+on `:root` and a custom property resolves its `var()` references against the
+element it is declared on — but `--board-rows` was set on `.app`, one level
+down, so the fallback `11` won. Tiles came out ~18% smaller than the viewport
+allowed, on a layout that is 8 columns wide precisely to hit a 44px touch
+target. The dimensions are now published to the document element.
+
+**Safe areas.** `env(safe-area-inset-*)` was in the stylesheet but the page never
+set `viewport-fit=cover`, so every inset evaluated to zero. It does now, and the
+insets are named once at `:root` and added back on every fixed edge — the top bar
+holding Menu / Reset / fullscreen, the bottom sheet holding the roster and Ready,
+and the battle control bar. They are also subtracted from the tile-size
+calculation, so the board fits the visible area rather than the area behind the
+notch.
+
 ### Current state, 6,000 matches
 
 ```

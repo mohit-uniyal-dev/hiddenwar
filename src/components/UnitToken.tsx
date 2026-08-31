@@ -1,12 +1,12 @@
-import type { Direction, Team, UnitTypeId } from "../game/types.ts";
+import type { Team, UnitTypeId } from "../game/types.ts";
 import { UnitIcon } from "./UnitIcon.tsx";
 
 interface Props {
   type: UnitTypeId;
   team: Team;
-  facing: Direction;
-  /** Structures have no meaningful facing, so no chevron is drawn. */
-  showFacing?: boolean;
+  /** Footprint in tiles, so a multi-tile piece is drawn the size it occupies. */
+  width?: number;
+  height?: number;
   hpFraction?: number;
   destroyed?: boolean;
   selected?: boolean;
@@ -14,18 +14,22 @@ interface Props {
   onClick?: (event: React.MouseEvent) => void;
 }
 
+/**
+ * No facing chevron is drawn, because there is no facing to choose: every
+ * weapon points at the enemy. An arrow that is identical on every friendly
+ * piece is decoration that reads as information.
+ */
 export function UnitToken({
   type,
   team,
-  facing,
-  showFacing = true,
+  width = 1,
+  height = 1,
   hpFraction = 1,
   destroyed = false,
   selected = false,
   justHit = false,
   onClick,
 }: Props) {
-  const isStructure = type === "sandbag" || type === "hq";
   const classes = [
     "unit",
     `team-${team}`,
@@ -45,6 +49,15 @@ export function UnitToken({
   return (
     <div
       className={classes}
+      // Sized from the unit's own footprint rather than a hardcoded rule. The
+      // HQ was 2x2 when it became 1x2, so its token covered a column it did not
+      // occupy — it hung off the board edge, it looked like units were placed
+      // inside it, and it swallowed drag hit-tests aimed at the next column.
+      style={
+        width === 1 && height === 1
+          ? undefined
+          : ({ "--unit-w": width, "--unit-h": height } as React.CSSProperties)
+      }
       onClick={onClick}
       role={onClick ? "button" : undefined}
       aria-label={onClick ? type : undefined}
@@ -52,14 +65,6 @@ export function UnitToken({
       <span className="unit-art">
         <UnitIcon type={type} />
       </span>
-      {showFacing && !isStructure && (
-        <span className={`facing ${facing}`} aria-hidden="true">
-          <svg viewBox="0 0 16 12">
-            <title>Facing direction</title>
-            <path d="M2 10 8 3l6 7" />
-          </svg>
-        </span>
-      )}
       {hpFraction < 1 && !destroyed && (
         <span className="hpbar">
           <i className={barClass} style={{ width: `${Math.max(0, hpFraction) * 100}%` }} />

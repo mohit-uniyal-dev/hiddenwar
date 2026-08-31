@@ -36,6 +36,8 @@ interface Props {
   onTileClick?: (row: number, col: number) => void;
   onTilePointerDown?: (row: number, col: number, event: React.PointerEvent) => void;
   onUnitClick?: (unit: RenderUnit, event: React.MouseEvent) => void;
+  /** Deployment drags read the tile under the finger off this element's rect. */
+  ref?: React.Ref<HTMLDivElement>;
   children?: React.ReactNode;
 }
 
@@ -55,6 +57,7 @@ export function Board({
   onTileClick,
   onTilePointerDown,
   onUnitClick,
+  ref,
   children,
 }: Props) {
   const arcSet = new Set(arc.map(key));
@@ -112,8 +115,8 @@ export function Board({
             <UnitToken
               type={unit.type}
               team={unit.team}
-              facing={unit.facing}
-              showFacing={UNITS[unit.type].pattern !== undefined}
+              width={UNITS[unit.type].width}
+              height={UNITS[unit.type].height}
               hpFraction={unit.hpFraction ?? 1}
               destroyed={unit.destroyed ?? false}
               selected={unit.selected ?? false}
@@ -134,6 +137,7 @@ export function Board({
   return (
     <div
       className="board"
+      ref={ref}
       style={{
         // Driven from BOARD so the grid can never drift out of sync with the
         // rules the way a hardcoded `repeat(12, ...)` in CSS would.

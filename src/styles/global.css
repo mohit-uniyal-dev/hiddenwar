@@ -34,7 +34,10 @@
   --arc-blocked: rgba(120, 110, 95, 0.2);
 
   /* Tall board: cap by height so the column never overflows the viewport. */
-  --tile: min(3.4rem, calc((100dvh - 21rem) / var(--board-rows, 11)));
+  --tile: min(
+    3.4rem,
+    calc((100dvh - 21rem - var(--safe-top) - var(--safe-bottom)) / var(--board-rows, 9))
+  );
   --radius: 7px;
 
   --font: "Barlow Condensed", "Oswald", "Arial Narrow", system-ui, sans-serif;
@@ -112,20 +115,38 @@ button.danger {
 
 /* ---------------------------------------------------------------- layout */
 
+/*
+  Safe areas, named once.
+
+  The page opts into `viewport-fit=cover`, which is what makes these non-zero —
+  and which also means the layout now extends under the notch and the home
+  indicator. Every fixed edge therefore has to add its inset back: the top bar
+  holding Menu, Reset and fullscreen, and the bottom sheet holding the roster
+  and Ready. Both are exactly the controls a thumb reaches for, so both are
+  exactly the ones that must not sit under system furniture.
+*/
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
 .app {
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 1.25rem;
+  padding: calc(1.25rem + var(--safe-top)) calc(1.25rem + var(--safe-right))
+    calc(1.25rem + var(--safe-bottom)) calc(1.25rem + var(--safe-left));
   gap: 1rem;
 }
 
 /*
  * Portrait everywhere.
  *
- * The board is 8 wide by 11 tall, so the natural composition is a phone-shaped
+ * The board is 8 wide by 9 tall, so the natural composition is a phone-shaped
  * column: board on top, panel beneath. Laying it out as a row put the panel
  * beside the board and made the whole app read as landscape at any width above
  * the mobile breakpoint — desktop should be a preview of the phone experience,
@@ -534,48 +555,6 @@ button.danger {
   100% {
     filter: brightness(1);
   }
-}
-
-/* Facing chevron — the second, non-colour channel for direction */
-.facing {
-  position: absolute;
-  width: calc(var(--tile) * 0.3);
-  height: calc(var(--tile) * 0.22);
-  display: grid;
-  place-items: center;
-  opacity: 0.95;
-  pointer-events: none;
-  filter: drop-shadow(0 1px 0 #fff4d9) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.48));
-}
-
-.facing svg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.facing path {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.facing.N {
-  top: -2px;
-}
-.facing.S {
-  bottom: -2px;
-  transform: rotate(180deg);
-}
-.facing.E {
-  right: -3px;
-  transform: rotate(90deg);
-}
-.facing.W {
-  left: -3px;
-  transform: rotate(-90deg);
 }
 
 .hpbar {
@@ -1107,14 +1086,23 @@ table.report-table tr.dead td {
   }
 }
 
-/* The 2x2 HQ spans two tiles from its anchor. */
-.unit.hq {
+/*
+  A multi-tile piece is drawn the size it actually occupies, from --unit-w and
+  --unit-h set by the token from its own spec.
+
+  This was hardcoded to 2x2 and stayed that way when the HQ became 1 wide by 2
+  deep, so every node was drawn a full column wider than it stood. A node in the
+  last column hung off the board; elsewhere it covered the neighbouring column,
+  which made legally placed units look like they were sitting inside the HQ and
+  made that column swallow drag hit-tests aimed at it.
+*/
+.unit[style*="--unit-w"] {
   top: 2px;
   left: 2px;
   right: auto;
   bottom: auto;
-  width: calc(var(--tile) * 2 - 4px);
-  height: calc(var(--tile) * 2 - 4px);
+  width: calc(var(--tile) * var(--unit-w, 1) - 4px);
+  height: calc(var(--tile) * var(--unit-h, 1) - 4px);
   z-index: 2;
 }
 
@@ -1477,13 +1465,14 @@ ul.objectives li.fail {
   }
 
   .army {
-    width: min(calc(var(--tile) * 12 + 10px), 100%);
+    width: min(calc(var(--tile) * var(--board-cols, 8) + 10px), 100%);
   }
 }
 
 @media (max-width: 620px) {
   .app {
-    padding: 0.75rem 0.35rem;
+    padding: calc(0.75rem + var(--safe-top)) calc(0.35rem + var(--safe-right))
+      calc(0.75rem + var(--safe-bottom)) calc(0.35rem + var(--safe-left));
   }
 
   .battlefield-heading {
@@ -1512,22 +1501,6 @@ ul.objectives li.fail {
 /*  the difference between playable and merely responsive.                */
 /* ===================================================================== */
 
-.facing-control {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-}
-
-.facing-control .facing-arrow {
-  font-size: 0.9rem;
-  line-height: 1;
-}
-
-.facing-control .facing-label {
-  font-size: 0.7rem;
-}
-
 .stat-compact {
   display: none;
   margin: 0 0 0.5rem;
@@ -1543,7 +1516,8 @@ ul.objectives li.fail {
   */
   .app {
     justify-content: flex-start;
-    padding: 0.5rem;
+    padding: calc(0.5rem + var(--safe-top)) calc(0.5rem + var(--safe-right))
+      calc(0.5rem + var(--safe-bottom)) calc(0.5rem + var(--safe-left));
     gap: 0.5rem;
   }
 
@@ -1563,6 +1537,7 @@ ul.objectives li.fail {
   */
   .app.app-sheet {
     justify-content: center;
+    /* The measured sheet height already includes its own bottom inset. */
     padding-bottom: calc(var(--sheet-collapsed) + 0.5rem);
   }
 
@@ -1581,7 +1556,8 @@ ul.objectives li.fail {
     box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45);
     max-height: 88dvh;
     overflow-y: auto;
-    padding: 0.35rem 0.6rem 0.6rem;
+    padding: 0.35rem calc(0.6rem + var(--safe-right)) calc(0.6rem + var(--safe-bottom))
+      calc(0.6rem + var(--safe-left));
     transition: none;
   }
 
@@ -1612,8 +1588,8 @@ ul.objectives li.fail {
   :root {
     --sheet-collapsed: 11.5rem;
     --tile: min(
-      calc((100vw - 1.6rem) / var(--board-cols, 8)),
-      calc((100dvh - 13rem) / var(--board-rows, 11))
+      calc((100vw - 1.6rem - var(--safe-left) - var(--safe-right)) / var(--board-cols, 8)),
+      calc((100dvh - 13rem - var(--safe-top) - var(--safe-bottom)) / var(--board-rows, 9))
     );
   }
 
@@ -1756,10 +1732,6 @@ ul.objectives li.fail {
     right: 0.25rem;
     font-size: 0.66rem;
     font-weight: 700;
-  }
-
-  .facing-control {
-    display: flex;
   }
 
   /* Replace the tall definition list with a single line. */
@@ -1940,8 +1912,8 @@ ul.objectives li.fail {
 
 .fullscreen-toggle {
   position: fixed;
-  top: max(0.6rem, env(safe-area-inset-top));
-  right: max(0.6rem, env(safe-area-inset-right));
+  top: calc(0.6rem + var(--safe-top));
+  right: calc(0.6rem + var(--safe-right));
   z-index: 100;
   display: flex;
   align-items: center;
@@ -1982,7 +1954,7 @@ ul.objectives li.fail {
  * live here have been removed.
  *
  * Both dated from the 12x9 board, which genuinely needed landscape. The board
- * is now 8x11 — portrait — so a gate demanding landscape asked players to turn
+ * is now 8 wide by 9 tall — portrait — so a gate demanding landscape asked players to turn
  * away from the orientation the game is built for. The landscape mode was also
  * stale in a way that would have gone unnoticed: it hardcoded `/12` and `/9`
  * for tile sizing, so it was still laying out the old board.
@@ -2035,8 +2007,8 @@ ul.objectives li.fail {
   */
   .app-battle {
     justify-content: center;
-    padding-top: 3rem;
-    padding-bottom: 4.6rem;
+    padding-top: calc(3rem + var(--safe-top));
+    padding-bottom: calc(4.6rem + var(--safe-bottom));
   }
 
   .app-battle .controls {
@@ -2046,7 +2018,8 @@ ul.objectives li.fail {
     bottom: 0;
     z-index: 20;
     margin: 0;
-    padding: 0.55rem 0.5rem calc(0.55rem + env(safe-area-inset-bottom));
+    padding: 0.55rem calc(0.5rem + var(--safe-right)) calc(0.55rem + var(--safe-bottom))
+      calc(0.5rem + var(--safe-left));
     gap: 0.3rem;
     background: var(--paper);
     border-top: 1px solid var(--board-edge);

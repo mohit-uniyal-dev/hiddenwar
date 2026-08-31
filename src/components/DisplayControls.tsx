@@ -24,7 +24,7 @@ function fullscreenElement(): Element | null {
  *
  * There is deliberately no "rotate your device" gate any more. There used to be
  * one, from when the board was 12 wide by 9 tall and genuinely needed landscape.
- * The board is now 8 by 11 — portrait — so a gate demanding landscape would be
+ * The board is now 8 wide by 9 tall — portrait — so a gate demanding landscape would be
  * asking players to turn away from the orientation the game is designed for,
  * and phones are already held that way.
  *

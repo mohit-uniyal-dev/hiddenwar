@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArmyPanel } from "../components/ArmyPanel.tsx";
 import { Board, type RenderUnit, toRenderUnits } from "../components/Board.tsx";
 import { DisplayControls } from "../components/DisplayControls.tsx";
+import { BOARD } from "../game/config/gameConfig.ts";
 import { UNITS } from "../game/config/units.ts";
 import { arcPreview } from "../game/engine/preview.ts";
 import { canPlace } from "../game/models/deployment.ts";
-import type { Coord, Direction, PlacedUnit, UnitTypeId } from "../game/types.ts";
+import type { Coord, Direction, PlacedUnit, Team, UnitTypeId } from "../game/types.ts";
 import { activeKit, activePuzzle, useGame } from "../store/gameStore.ts";
 
 /**
@@ -19,7 +20,6 @@ const DRAG_SLOP = 10;
 
 interface DragState {
   readonly type: UnitTypeId;
-  readonly facing: Direction;
   /** Index of the placed unit being moved, or null when dragging from the roster. */
   readonly fromIndex: number | null;
   readonly tile: Coord | null;
@@ -34,13 +34,27 @@ interface DragState {
  * Hit-testing rather than event targets, because a pointer gesture stays bound
  * to the element it started on — the tile under the finger has to be looked up.
  */
-function tileFromPoint(x: number, y: number): Coord | null {
-  const el = document.elementFromPoint(x, y);
-  const tile = el instanceof Element ? el.closest("[data-row]") : null;
-  if (tile === null) return null;
-  const row = Number(tile.getAttribute("data-row"));
-  const col = Number(tile.getAttribute("data-col"));
-  return Number.isFinite(row) && Number.isFinite(col) ? { row, col } : null;
+/**
+ * The tile under a pointer, computed from the board's own geometry.
+ *
+ * This used to hit-test with `document.elementFromPoint` and walk up to the
+ * nearest `[data-row]`, which made the answer depend on what was drawn on top:
+ * a unit token belongs to its ANCHOR tile, so any piece overhanging its cell —
+ * a multi-tile HQ, a selected token scaled up by 8% — answered with its own
+ * tile instead of the one under the finger. Drops landed a column away, or
+ * silently did nothing.
+ *
+ * Dividing the board rectangle is exact, independent of z-order, and cannot be
+ * fooled by anything painted over the grid.
+ */
+function tileFromPoint(board: HTMLDivElement | null, x: number, y: number): Coord | null {
+  if (board === null) return null;
+  const rect = board.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return null;
+  const col = Math.floor(((x - rect.left) / rect.width) * BOARD.cols);
+  const row = Math.floor(((y - rect.top) / rect.height) * BOARD.rows);
+  if (row < 0 || row >= BOARD.rows || col < 0 || col >= BOARD.cols) return null;
+  return { row, col };
 }
 
 /** Index of the unit occupying a tile, accounting for the 2x2 HQ. */
@@ -51,6 +65,17 @@ function unitIndexAt(units: readonly PlacedUnit[], row: number, col: number): nu
   });
 }
 
+/**
+ * Weapons always point at the enemy; there is nothing to choose.
+ *
+ * Facing used to be selectable, and it was never worth changing: summed over
+ * every legal tile, a soldier, AT gun or tank facing anywhere but forward
+ * covers ZERO enemy tiles, and a machine gun covers 9 against 192. Two
+ * controls existed to set it, one of them labelled "Next", and neither did
+ * anything a player would want.
+ */
+const facingFor = (team: Team): Direction => (team === "A" ? "N" : "S");
+
 export function DeploymentScreen() {
   const mode = useGame((s) => s.mode);
   const puzzleId = useGame((s) => s.puzzleId);
@@ -58,11 +83,9 @@ export function DeploymentScreen() {
   const deployment = useGame((s) => s.deployments[s.activeTeam]);
   const enemyDeployment = useGame((s) => s.deployments[s.activeTeam === "A" ? "B" : "A"]);
   const selectedType = useGame((s) => s.selectedType);
-  const selectedFacing = useGame((s) => s.selectedFacing);
   const selectedIndex = useGame((s) => s.selectedIndex);
   const selectType = useGame((s) => s.selectType);
   const selectPlaced = useGame((s) => s.selectPlaced);
-  const rotateSelected = useGame((s) => s.rotateSelected);
   const place = useGame((s) => s.place);
   const removeAt = useGame((s) => s.removeAt);
   const moveTo = useGame((s) => s.moveTo);
@@ -86,12 +109,13 @@ export function DeploymentScreen() {
    * unit that is already on the board.
    */
   const [drag, setDrag] = useState<DragState | null>(null);
+  // The drag reads tiles off this element's rectangle rather than hit-testing.
+  const boardRef = useRef<HTMLDivElement>(null);
 
   const beginDrag = useCallback(
-    (type: UnitTypeId, facing: Direction, fromIndex: number | null, event: React.PointerEvent) => {
+    (type: UnitTypeId, fromIndex: number | null, event: React.PointerEvent) => {
       setDrag({
         type,
-        facing,
         fromIndex,
         tile: null,
         moved: false,
@@ -110,12 +134,12 @@ export function DeploymentScreen() {
       const far =
         Math.abs(event.clientX - drag.startX) > DRAG_SLOP ||
         Math.abs(event.clientY - drag.startY) > DRAG_SLOP;
-      const tile = tileFromPoint(event.clientX, event.clientY);
+      const tile = tileFromPoint(boardRef.current, event.clientX, event.clientY);
       setDrag((d) => (d === null ? d : { ...d, tile, moved: d.moved || far }));
     };
 
     const finish = (event: PointerEvent) => {
-      const tile = tileFromPoint(event.clientX, event.clientY);
+      const tile = tileFromPoint(boardRef.current, event.clientX, event.clientY);
       setDrag((d) => {
         // A gesture that never moved is a tap — leave it to the click handler.
         if (d === null || !d.moved || tile === null) return null;
@@ -154,10 +178,6 @@ export function DeploymentScreen() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "r" || e.key === "R") {
-        e.preventDefault();
-        rotateSelected();
-      }
       if (e.key === "Escape") {
         selectType(null);
         selectPlaced(null);
@@ -166,7 +186,7 @@ export function DeploymentScreen() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [rotateSelected, selectType, selectPlaced]);
+  }, [selectType, selectPlaced]);
 
   const selectedUnit: PlacedUnit | null =
     selectedIndex !== null ? (deployment.units[selectedIndex] ?? null) : null;
@@ -175,9 +195,9 @@ export function DeploymentScreen() {
   const dragTile = drag?.moved ? drag.tile : null;
   const pending: PlacedUnit | null =
     drag !== null && dragTile !== null
-      ? { type: drag.type, row: dragTile.row, col: dragTile.col, facing: drag.facing }
+      ? { type: drag.type, row: dragTile.row, col: dragTile.col, facing: facingFor(activeTeam) }
       : selectedType !== null && hovered !== null
-        ? { type: selectedType, row: hovered.row, col: hovered.col, facing: selectedFacing }
+        ? { type: selectedType, row: hovered.row, col: hovered.col, facing: facingFor(activeTeam) }
         : null;
 
   const pendingLegal =
@@ -303,6 +323,7 @@ export function DeploymentScreen() {
           </span>
         </div>
         <Board
+          ref={boardRef}
           units={units}
           arc={preview.covered}
           arcBlocked={preview.blocked}
@@ -320,7 +341,7 @@ export function DeploymentScreen() {
             const unit = index >= 0 ? deployment.units[index] : undefined;
             // The HQ is placed automatically and cannot be picked up.
             if (unit === undefined || unit.type === "hq") return;
-            beginDrag(unit.type, unit.facing, index, event);
+            beginDrag(unit.type, index, event);
           }}
           onTileClick={(row, col) => {
             /*
@@ -329,10 +350,10 @@ export function DeploymentScreen() {
 
               Previously a tap with a roster type still selected tried to place
               on top of the unit, failed silently because the tile was taken,
-              and so never selected it — no arc preview, and nothing for the
-              facing control to rotate. Since a type stays selected while you
-              still have that unit left, this failed most of the time and
-              worked right after you ran out of one: the "sometimes" behaviour.
+              and so never selected it — so no arc preview appeared. Since a
+              type stays selected while you still have that unit left, this
+              failed most of the time and worked right after you ran out of
+              one: the "sometimes" behaviour.
             */
             const index = unitIndexAt(deployment.units, row, col);
             if (index >= 0) {
@@ -363,7 +384,6 @@ export function DeploymentScreen() {
         deployment={deployment}
         selectedType={selectedType}
         selectedUnit={selectedUnit}
-        currentFacing={selectedUnit?.facing ?? selectedFacing}
         coverage={{
           covered: preview.covered.length,
           shadowed: preview.blocked.length,
@@ -371,7 +391,6 @@ export function DeploymentScreen() {
         }}
         onSelectType={selectType}
         onBeginDrag={beginDrag}
-        onRotate={rotateSelected}
         onRemove={() => selectedIndex !== null && removeAt(selectedIndex)}
         onClear={clearAll}
         onAutoFill={autoFill}

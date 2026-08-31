@@ -9,6 +9,23 @@ import { ResultsScreen } from "./screens/Results.tsx";
 import { useGame } from "./store/gameStore.ts";
 
 /**
+ * Board dimensions reach the stylesheet from the rules, so the tile size can
+ * never drift out of sync with the actual grid.
+ *
+ * They go on the DOCUMENT element, not on `.app`, and that distinction is the
+ * whole point. `--tile` is declared on `:root`, and a custom property resolves
+ * its `var()` references against the element it is declared on — so with the
+ * dimensions living on `.app`, `--tile` fell back to `var(--board-rows, 11)`
+ * and sized every tile for eleven rows on a board that has nine. Tiles were
+ * about 18% smaller than the viewport allowed, on a layout whose whole reason
+ * for being 8 columns wide is hitting a 44px touch target.
+ *
+ * Set at module scope so it lands before first paint rather than after it.
+ */
+document.documentElement.style.setProperty("--board-cols", String(BOARD.cols));
+document.documentElement.style.setProperty("--board-rows", String(BOARD.rows));
+
+/**
  * Puzzle mode is built, tested and working — just not surfaced yet. Flip to
  * true to bring it back; nothing else needs to change.
  */
@@ -26,12 +43,7 @@ export function App() {
   const sheet = phase === "deploy";
 
   return (
-    <div
-      className={`app app-${phase}${centred ? " app-centred" : ""}${sheet ? " app-sheet" : ""}`}
-      // Board dimensions reach the stylesheet from the rules, so the mobile
-      // tile size can never drift out of sync with the actual grid.
-      style={{ "--board-cols": BOARD.cols, "--board-rows": BOARD.rows } as React.CSSProperties}
-    >
+    <div className={`app app-${phase}${centred ? " app-centred" : ""}${sheet ? " app-sheet" : ""}`}>
       {/* Deployment renders its own inside the board top bar. */}
       {phase !== "deploy" && <DisplayControls />}
       {phase === "home" && <HomeScreen />}

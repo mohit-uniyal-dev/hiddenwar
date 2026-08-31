@@ -6,12 +6,13 @@
 
 import { create } from "zustand";
 import {
+  BOARD,
   HQ_ANCHOR,
   type HqAnchors,
   hqAnchorsForSeed,
   terrainForSeed,
 } from "../game/config/gameConfig.ts";
-import { MVP_ARMY, PLACEABLE_ARMY, type Roster, UNITS } from "../game/config/units.ts";
+import { MVP_ARMY, PLACEABLE_ARMY, type Roster } from "../game/config/units.ts";
 import {
   type ArchetypeId,
   DIFFICULTY_POOLS,
@@ -52,7 +53,6 @@ interface GameState {
 
   // --- deployment UI ---
   selectedType: UnitTypeId | null;
-  selectedFacing: Direction;
   selectedIndex: number | null;
 
   result: BattleResult | null;
@@ -65,8 +65,6 @@ interface GameState {
   backHome: () => void;
   selectType: (type: UnitTypeId | null) => void;
   selectPlaced: (index: number | null) => void;
-  setFacing: (facing: Direction) => void;
-  rotateSelected: () => void;
   place: (row: number, col: number) => void;
   removeAt: (index: number) => void;
   /** Reposition an already-placed unit. Returns silently if the tile is illegal. */
@@ -77,8 +75,6 @@ interface GameState {
   proceedToDeploy: () => void;
   finish: () => void;
 }
-
-const FACINGS: Direction[] = ["N", "E", "S", "W"];
 
 function remaining(deployment: Deployment, kit: Roster): Map<UnitTypeId, number> {
   const left = expectedCounts(kit);
@@ -147,7 +143,6 @@ function defaultFacing(team: Team): Direction {
 
 const FRESH = {
   selectedType: null,
-  selectedFacing: "N" as Direction,
   selectedIndex: null,
   result: null,
 };
@@ -270,27 +265,18 @@ export const useGame = create<GameState>((set, get) => ({
 
   selectType: (type) => set({ selectedType: type, selectedIndex: null }),
   selectPlaced: (index) => set({ selectedIndex: index, selectedType: null }),
-  setFacing: (facing) => set({ selectedFacing: facing }),
-
-  rotateSelected: () => {
-    const { selectedIndex, activeTeam, deployments, selectedFacing } = get();
-    if (selectedIndex === null) {
-      set({ selectedFacing: FACINGS[(FACINGS.indexOf(selectedFacing) + 1) % 4] ?? "N" });
-      return;
-    }
-    const deployment = deployments[activeTeam];
-    const unit = deployment.units[selectedIndex];
-    if (unit === undefined) return;
-    const next = FACINGS[(FACINGS.indexOf(unit.facing) + 1) % 4] ?? "N";
-    const units = deployment.units.map((x, i) =>
-      i === selectedIndex ? { ...x, facing: next } : x,
-    );
-    set({ deployments: { ...deployments, [activeTeam]: { ...deployment, units } } });
-  },
-
+  /*
+    Every weapon faces the enemy, and that is not a default — it is the only
+    option. Facing was selectable and never worth changing: summed over every
+    legal tile, a soldier, AT gun or tank facing anywhere but forward covers
+    ZERO enemy tiles, and a machine gun covers 9 against 192 forward. A control
+    whose alternatives are all wrong is not a choice, it is a trap, so it is
+    gone. `facing` stays in the data model because the engine resolves arcs
+    with it; nothing chooses it any more.
+  */
   place: (row, col) => {
     const state = get();
-    const { selectedType, activeTeam, deployments, selectedFacing } = state;
+    const { selectedType, activeTeam, deployments } = state;
     if (selectedType === null) return;
     const kit = activeKit(state);
     const deployment = deployments[activeTeam];
@@ -301,7 +287,7 @@ export const useGame = create<GameState>((set, get) => ({
       type: selectedType,
       row,
       col,
-      facing: UNITS[selectedType].pattern === undefined ? "N" : selectedFacing,
+      facing: defaultFacing(activeTeam),
     };
     const units = [...deployment.units, placed];
     const stillLeft = (remaining({ ...deployment, units }, kit).get(selectedType) ?? 0) > 0;
@@ -368,7 +354,7 @@ export const useGame = create<GameState>((set, get) => ({
         let placed = false;
         for (const row of rows) {
           if (placed) break;
-          for (let col = 0; col < 12; col++) {
+          for (let col = 0; col < BOARD.cols; col++) {
             if (canPlace(activeTeam, type, row, col, units, -1, get().craters)) {
               units.push({ type, row, col, facing: defaultFacing(activeTeam) });
               placed = true;

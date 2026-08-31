@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MVP_ARMY, type Roster, UNITS } from "../game/config/units.ts";
-import type { Deployment, Direction, PlacedUnit, Team, UnitTypeId } from "../game/types.ts";
+import type { Deployment, PlacedUnit, Team, UnitTypeId } from "../game/types.ts";
 import { isComplete, remainingFor } from "../store/gameStore.ts";
 import { UnitIcon } from "./UnitIcon.tsx";
 
@@ -12,8 +12,6 @@ const PRIORITY_LABEL: Record<string, string> = {
   infantryFirst: "Infantry first",
   cluster: "Largest cluster",
 };
-
-const FACING_ARROW: Record<Direction, string> = { N: "▲", E: "▶", S: "▼", W: "◀" };
 
 const UNIT_ROLE: Record<UnitTypeId, string> = {
   soldier: "Reliable rifle squad",
@@ -35,18 +33,11 @@ interface Props {
   selectedType: UnitTypeId | null;
   selectedUnit: PlacedUnit | null;
   /** Facing that will be used for the next placement, or of the selected unit. */
-  currentFacing: Direction;
   /** Live counts from the arc preview, so coverage is never left to inference. */
   coverage?: { covered: number; shadowed: number; dead: number };
   onSelectType: (type: UnitTypeId | null) => void;
   /** Start dragging a fresh unit out of the roster onto the board. */
-  onBeginDrag?: (
-    type: UnitTypeId,
-    facing: Direction,
-    fromIndex: number | null,
-    event: React.PointerEvent,
-  ) => void;
-  onRotate: () => void;
+  onBeginDrag?: (type: UnitTypeId, fromIndex: number | null, event: React.PointerEvent) => void;
   onRemove: () => void;
   onClear: () => void;
   onAutoFill: () => void;
@@ -60,11 +51,9 @@ export function ArmyPanel({
   deployment,
   selectedType,
   selectedUnit,
-  currentFacing,
   coverage,
   onSelectType,
   onBeginDrag,
-  onRotate,
   onRemove,
   onClear,
   onAutoFill,
@@ -162,7 +151,7 @@ export function ArmyPanel({
                 // Selecting on press keeps a plain tap arming tap-to-place,
                 // while a drag from the same press previews the arc on the way.
                 onSelectType(type);
-                onBeginDrag?.(type, currentFacing, null, event);
+                onBeginDrag?.(type, null, event);
               }}
             >
               <span className={`chip unit-chip team-${team}`}>
@@ -209,8 +198,6 @@ export function ArmyPanel({
                 <dd>{((inspect.cooldownTicks ?? 0) / 20).toFixed(1)}s</dd>
                 <dt>Targets</dt>
                 <dd>{PRIORITY_LABEL[inspect.priority ?? ""] ?? "—"}</dd>
-                <dt>Facing</dt>
-                <dd>{selectedUnit.facing}</dd>
               </>
             )}
             {inspect.blocksLineOfSight === true && (
@@ -248,9 +235,6 @@ export function ArmyPanel({
           )}
 
           <div className="row-actions">
-            <button type="button" onClick={onRotate}>
-              Rotate (R)
-            </button>
             {selectedUnit.type !== "hq" && (
               <button type="button" className="danger" onClick={onRemove}>
                 Remove
@@ -261,40 +245,22 @@ export function ArmyPanel({
       )}
 
       {selectedUnit === null && selectedType !== null && (
-        <p className="hint">
-          Click a tile in your zone to place. Press <b>R</b> to set facing before you place.
-        </p>
+        <p className="hint">Click a tile in your zone to place it.</p>
       )}
 
       {selectedUnit === null && selectedType === null && (
         <p className="hint">
-          Pick a unit to place, or click one already on the board to rotate or remove it.
+          Pick a unit to place, or click one already on the board to inspect or remove it.
         </p>
       )}
 
       <div className="row-actions tools">
         {/*
-          Touch has no `R` key and no hover, so facing needs a visible control.
-          It shares the tool row rather than taking a full-width bar of its own.
+          There was a facing control here, and a second one in the unit detail
+          block that sometimes read "Next" and sometimes "Rotate" depending on
+          what was selected. Both are gone: every weapon points at the enemy,
+          and no other facing covers meaningful ground.
         */}
-        {/*
-          Says what it acts on. Unlabelled, it read as broken when nothing was
-          selected: it was setting the facing for the NEXT placement, which is
-          invisible until you place something.
-        */}
-        <button
-          type="button"
-          className="facing-control"
-          onClick={onRotate}
-          title={
-            selectedUnit === null
-              ? "Facing for the next unit you place (R)"
-              : `Rotate this ${UNITS[selectedUnit.type].name} (R)`
-          }
-        >
-          <span className={`facing-arrow ${currentFacing}`}>{FACING_ARROW[currentFacing]}</span>
-          <span className="facing-label">{selectedUnit === null ? "Next" : "Rotate"}</span>
-        </button>
         <button type="button" onClick={onAutoFill}>
           Auto-fill
         </button>
@@ -308,7 +274,7 @@ export function ArmyPanel({
         </button>
       </div>
       {ready && readyLabel === "Ready" && (
-        <p className="hint">Ready is irreversible — your facing choices lock in.</p>
+        <p className="hint">Ready is irreversible — your placements lock in.</p>
       )}
     </div>
   );
