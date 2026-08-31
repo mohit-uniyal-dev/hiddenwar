@@ -463,46 +463,31 @@ button.danger {
   color: var(--team-b);
 }
 
+/*
+  The grounding shadow follows the sprite's own outline, because it is a filter
+  on the rendered pixels rather than a shape of its own.
+
+  This matters more than it sounds. A drawn ellipse was tried and it only ever
+  looked right for pieces that fill their canvas: a tank does, so its shadow
+  landed under it, but a sandbag is a 16:9 image letterboxed into a square tile
+  and floated a third of a tile above the mark, and a soldier is a narrow figure
+  on a wide canvas so the ellipse spread well past his boots. No single shape
+  can ground a set of sprites with different silhouettes — but alpha already
+  knows every silhouette exactly.
+
+  It also survives the 180-degree flip on Orange's pieces for free: the filter
+  applies to the composited result, so the shadow falls downward for both sides
+  without a special case.
+*/
 .unit-art {
   position: relative;
   width: 100%;
   height: 100%;
   display: grid;
   place-items: center;
-  filter: drop-shadow(0 1px 0 rgba(255, 250, 228, 0.9))
-    drop-shadow(0 2px 1px rgba(44, 34, 20, 0.48));
+  filter: drop-shadow(0 1px 0 rgba(255, 250, 228, 0.85))
+    drop-shadow(0 2px 2px rgba(44, 34, 20, 0.34)) drop-shadow(0 4px 3px rgba(44, 34, 20, 0.22));
   pointer-events: none;
-}
-
-/*
-  A contact shadow, not a badge.
-
-  There used to be a team-coloured disc behind every sprite here, and it was
-  carrying no information. Units never move and can only ever be placed in
-  their own half, so a piece's ZONE identifies its side with total reliability —
-  the disc was re-stating what the board already said, on top of detailed
-  artwork, in the one shape the board already uses for craters. Three circles
-  meaning three different things is not colour coding, it is noise.
-
-  What replaces it is what the art actually wants: a soft ellipse under the
-  piece so it sits ON the ground instead of floating over it. Team identity
-  moves to the zone tint, which is strengthened to carry that load alone.
-
-  The HQ is excluded: its sprite is 2:3 but a node's footprint is 1:2, so
-  `object-fit: contain` letterboxes it and a shadow pinned to the bottom of the
-  tile would float well clear of the artwork. It has its own dashed frame to sit
-  in. Exporting that one at 1:2 would let it join in.
-*/
-.unit:not(.hq) .unit-art::before {
-  content: "";
-  position: absolute;
-  left: 15%;
-  right: 15%;
-  bottom: 3%;
-  height: 15%;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at 50% 50%, rgba(50, 38, 20, 0.36), transparent 70%);
-  z-index: 0;
 }
 
 .unit-icon {
