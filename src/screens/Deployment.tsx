@@ -43,6 +43,14 @@ function tileFromPoint(x: number, y: number): Coord | null {
   return Number.isFinite(row) && Number.isFinite(col) ? { row, col } : null;
 }
 
+/** Index of the unit occupying a tile, accounting for the 2x2 HQ. */
+function unitIndexAt(units: readonly PlacedUnit[], row: number, col: number): number {
+  return units.findIndex((u) => {
+    const size = UNITS[u.type].size;
+    return row >= u.row && row < u.row + size && col >= u.col && col < u.col + size;
+  });
+}
+
 export function DeploymentScreen() {
   const mode = useGame((s) => s.mode);
   const puzzleId = useGame((s) => s.puzzleId);
@@ -304,30 +312,37 @@ export function DeploymentScreen() {
           onTilePointerDown={(row, col, event) => {
             // Dragging a piece already on the board repositions it.
             if (selectedType !== null) return;
-            const index = deployment.units.findIndex((u) => {
-              const size = UNITS[u.type].size;
-              return row >= u.row && row < u.row + size && col >= u.col && col < u.col + size;
-            });
+            const index = unitIndexAt(deployment.units, row, col);
             const unit = index >= 0 ? deployment.units[index] : undefined;
             // The HQ is placed automatically and cannot be picked up.
             if (unit === undefined || unit.type === "hq") return;
             beginDrag(unit.type, unit.facing, index, event);
           }}
           onTileClick={(row, col) => {
-            const existing = deployment.units.findIndex((u) => u.row === row && u.col === col);
-            if (selectedType !== null) place(row, col);
-            else if (existing >= 0 && deployment.units[existing]?.type !== "hq") {
-              selectPlaced(existing);
-            }
-          }}
-          onUnitClick={(unit) => {
-            if (selectedType !== null) {
-              place(unit.row, unit.col);
+            /*
+              An occupied tile always INSPECTS what stands there; placement only
+              ever targets empty ground.
+
+              Previously a tap with a roster type still selected tried to place
+              on top of the unit, failed silently because the tile was taken,
+              and so never selected it — no arc preview, and nothing for the
+              facing control to rotate. Since a type stays selected while you
+              still have that unit left, this failed most of the time and
+              worked right after you ran out of one: the "sometimes" behaviour.
+            */
+            const index = unitIndexAt(deployment.units, row, col);
+            if (index >= 0) {
+              // The HQ is automatic; there is nothing to adjust on it.
+              if (deployment.units[index]?.type !== "hq") selectPlaced(index);
               return;
             }
-            // The HQ is automatic; there is nothing to adjust on it.
+            if (selectedType !== null) place(row, col);
+          }}
+          onUnitClick={(unit) => {
             if (unit.type === "hq") return;
-            if (unit.index !== undefined && unit.team === activeTeam) selectPlaced(unit.index);
+            if (unit.team !== activeTeam) return;
+            const index = unitIndexAt(deployment.units, unit.row, unit.col);
+            if (index >= 0) selectPlaced(index);
           }}
         />
         <p className="hint board-note">

@@ -276,14 +276,23 @@ export function ArmyPanel({
           Touch has no `R` key and no hover, so facing needs a visible control.
           It shares the tool row rather than taking a full-width bar of its own.
         */}
+        {/*
+          Says what it acts on. Unlabelled, it read as broken when nothing was
+          selected: it was setting the facing for the NEXT placement, which is
+          invisible until you place something.
+        */}
         <button
           type="button"
           className="facing-control"
           onClick={onRotate}
-          title="Rotate the selected unit, or the next one you place (R)"
+          title={
+            selectedUnit === null
+              ? "Facing for the next unit you place (R)"
+              : `Rotate this ${UNITS[selectedUnit.type].name} (R)`
+          }
         >
           <span className={`facing-arrow ${currentFacing}`}>{FACING_ARROW[currentFacing]}</span>
-          <span className="facing-label">Facing</span>
+          <span className="facing-label">{selectedUnit === null ? "Next" : "Rotate"}</span>
         </button>
         <button type="button" onClick={onAutoFill}>
           Auto-fill
