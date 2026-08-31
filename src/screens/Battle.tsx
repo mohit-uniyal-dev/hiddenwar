@@ -116,7 +116,7 @@ export function BattleScreen() {
       : { label: `${seconds}s`, tone: "" };
 
   return (
-    <div className="screen" style={{ flexDirection: "column", alignItems: "center" }}>
+    <div className="screen">
       <div className="hud">
         <div className="strength">
           <i className="a" style={{ width: `${(frame.strength.A / totalStrength) * 100}%` }} />

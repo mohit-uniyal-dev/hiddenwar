@@ -2008,3 +2008,54 @@ ul.objectives li.fail {
     min-height: 2.2rem;
   }
 }
+
+/* ===================================================================== */
+/*  BATTLE SCREEN — PORTRAIT                                             */
+/* ===================================================================== */
+
+@media (max-width: 860px) and (orientation: portrait) {
+  /*
+    Same shape as the deployment sheet: playback controls anchored to the
+    bottom, board centred in the space that leaves. The top padding clears the
+    floating fullscreen button, which was sitting on top of the strength bar.
+  */
+  .app-battle {
+    justify-content: center;
+    padding-top: 3rem;
+    padding-bottom: 4.6rem;
+  }
+
+  .app-battle .controls {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    margin: 0;
+    padding: 0.55rem 0.5rem calc(0.55rem + env(safe-area-inset-bottom));
+    gap: 0.3rem;
+    background: var(--paper);
+    border-top: 1px solid var(--board-edge);
+    border-radius: 0.7rem 0.7rem 0 0;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45);
+    flex-wrap: nowrap;
+    justify-content: center;
+  }
+
+  .app-battle .controls button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.5rem 0.25rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+  }
+
+  /* Breathing room between the strength bar and the board. */
+  .app-battle .hud {
+    margin-bottom: 0.35rem;
+  }
+
+  .app-results {
+    justify-content: flex-start;
+  }
+}
