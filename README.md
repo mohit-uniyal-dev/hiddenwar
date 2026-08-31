@@ -20,13 +20,15 @@ pnpm dev          # http://localhost:5173
 | --- | --- |
 | `pnpm dev` | Vite dev server |
 | `pnpm build` | Typecheck + production bundle into `dist/` |
-| `pnpm test` | Vitest, 133 tests |
+| `pnpm test` | Vitest, 134 tests |
 | `pnpm test:watch` | Vitest in watch mode |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm lint` | Biome |
 | `pnpm format` | Biome, writing fixes |
 | `pnpm balance:sweep` | Play thousands of matches headlessly and print the §52 metrics. `--matches N`, `--seed N` |
 | `node scripts/matrix.ts` | Archetype head-to-head matrix — answers "does anything beat this shape?" |
+| `node scripts/tailor.ts` | **Tailoring gain** — freezes an opponent and hill-climbs single-piece answers to that specific board. The metric that matters most; see below |
+| `node scripts/sweep.ts --legacysep --blindgen --legacycraters --mortarstruct 1` | The same sweep with each shipped change reverted, for attributing a result to one change. See [scripts/experiment.ts](scripts/experiment.ts) |
 
 ### Playing on a phone
 
@@ -94,6 +96,7 @@ Home  →  Blue deploys  →  hand off  →  Orange deploys  →  reveal + 3-2-1
 - **Arc preview with LOS shadowing** — solid marks are tiles the unit can hit; faded marks are shadowed by *your own* cover. Shown as a ghost under the cursor before you commit.
 - **Battle playback** — tracers, shell arcs, explosions, health bars, damage states, a live army-strength bar, pause / 0.5× / 1× / 2× / restart, and exactly one slow-motion moment (the shot that kills an HQ).
 - **Battle report** — per-unit damage, kills and idle time, auto-generated tactical observations, and the two health metrics from §D.2.
+- **Debrief** — the half of the report that tells you what to *change*: findings drawn from this battle only (which node fell and down which column, which of your units dealt nothing, which columns you conceded, what the node gap asked of you), a column-by-column damage chart, and **One move** — an exhaustive replay of every legal single-piece change against the exact army they committed, which reports the best one and whether it would have won. Not a heuristic: several hundred complete battles, which the headless engine runs in well under a second.
 - **Rematch** reloads both formations pre-placed for editing. This is the core loop, not a convenience.
 
 Every bot formation is validated as a legal Classic army, and **every puzzle is proven solvable by running its reference solution through the real engine** — an unsolvable tutorial is worse than no tutorial.
@@ -152,6 +155,115 @@ Protected by a golden-log snapshot: any unintentional change to battle resolutio
 ---
 
 ## Notes for the next session
+
+> Everything below the next heading predates the twin-node era and is kept for
+> the reasoning, not the numbers. Start here.
+
+### The dominant-formation problem, and what it actually was
+
+Two rounds of structural fixes each removed the reigning dominant formation and
+installed a new one at ~70%. Concentration was dominant; twin objectives killed
+it; dispersion took over at 71%. That is not two balance failures — it is one,
+seen twice: **placement value was monotone along a single axis** (how spread out
+you are), so the harness kept finding whichever end of that axis was uphill. A
+third fix that flipped the sign again would have produced a third ~70% shape.
+
+What was done about it, all of it measured factorially so each change can be
+attributed on its own (`scripts/experiment.ts` reverts them individually):
+
+| Change | Effect, isolated |
+| --- | --- |
+| **Line-of-sight-aware formation generator** | idle units **22.8% → 13.5%**. Most of the "idle" problem was the measuring tool: the generator parked units behind craters and in rows whose range stops short of the enemy zone, which no player reading the arc overlay would do |
+| **Node gap drawn per match, `{2, 3}`** | dominant **71.2% → 63.8%**, matches in the 15–30s band 27.1% → 42.6%, timeouts 20.2% → 10.0% |
+| **Craters: exactly 2 a side, never in adjacent columns** | roughly neutral on balance, slightly better on pace; stops a draw walling off a quadrant |
+| **Mortar ×0.30 against structures** | **rejected — see below** |
+
+The node gap is the one that mattered, and it works the way it was supposed to:
+at gap 2 a concentrated push wins **60.3%** and a broad front **63.2%**; at gap 3
+concentration falls to **49.8%** and the front rises to **70.1%**. A seventeen-point
+swing between two board draws is the first time the right shape has depended on
+something the player can read before committing.
+
+### The mortar structure tax: tried, measured, rejected
+
+The obvious fix for "the mortar deals ~70% of all objective damage, against a
+target of under 35%" is to tax indirect fire against structures, so damage has
+to come through the lanes instead. It does not work, and the failure is worth
+recording because the reasoning behind it is genuinely persuasive.
+
+At ×0.30 the mortar's share fell to 43% — and matches stopped ending: timeouts
+**20% → 71%**, objective kills **65% → 10%**, in-band matches 27% → 9%, and the
+dominant formation moved by three points. Every intermediate value bought the
+same trade at a worse rate (×0.85 already cost 11 points of timeouts to buy 3 of
+share).
+
+The cause is geometry, not tuning. A node sits on the rear rank, so a lane
+weapon can only reach one from the enemy front rank, in that exact column, with
+clear line of sight. Taxing the mortar does not push objective damage into the
+lanes, because the lanes were never able to carry it — it just removes the
+damage. **The high mortar share is a symptom of where the objective sits**, so
+that is where any fix belongs. The `structureMultiplier` lever stays wired up
+(`--mortarstruct`), now with a known curve.
+
+### The number that reframed the problem
+
+The archetype table asks "which shape beats the field?" — a ladder question, and
+this game is not a ladder. The real loop is: face one committed board, lose,
+change something, run it again. So `scripts/tailor.ts` freezes an opponent and
+hill-climbs single-piece edits against **that specific board**:
+
+```
+                        vs front line    vs HQ rush
+generic front line wins      40.0%          75.0%
+tailored answer wins         90.0%          97.5%
+TAILORING GAIN               50.0 pts       22.5 pts
+median edits to flip            1              1
+```
+
+A 50-point gain means per-board counters exist and are easy to find: reading the
+enemy's board beats playing the statistically best shape, by a lot. That is the
+property the loop actually needs, and it is the strongest argument that a 67%
+top archetype is **not** this game's real problem.
+
+The caveat is the other half: **the median counter is one piece**. Reads pay
+enormously but they are shallow, and a single misplacement costs a match just as
+cheaply. That is the number to watch next, not the archetype table.
+
+### Also from this round
+
+- A **lateral-splash weapon was designed and then not built.** The premise check
+  came back wrong: the front line averages 5.65 shoulder-to-shoulder pairs, but
+  lane guard (6.07), HQ rush (6.06) and even the random control (6.10) are all
+  *higher*. A weapon punishing adjacency would tax every formation about
+  equally, which changes no decisions. This is the same failure the AT Gun
+  already made — specified against an 8-deep stack the 4-deep board cannot
+  produce — and the adjacency metric now exists in the sweep so it gets caught
+  before anything is built rather than after.
+- **`hqHpRemaining` was assigning instead of accumulating**, so ever since twin
+  nodes shipped, the report showed only the last node's HP: a side with one
+  node destroyed and one at full health read as completely healthy.
+- The time cap has been 45s since the twin-node change, but the UI still said
+  60s in two places.
+
+### Current state, 6,000 matches
+
+```
+Front line       66.8%      gap 2  63.2%   gap 3  70.1%
+Spread           57.5%             56.6%          58.3%
+HQ rush          55.1%             60.3%          49.8%   <- reverses with the board
+HQ lane guard    53.4%             53.9%          52.9%
+Artillery-heavy  45.7%
+Turtle           35.9%
+Random (control) 30.9%
+
+matches in 15-30s band  43.9%    idle units 11.3%    draws 1.6%
+mean 29.8s   median 31.0s        lane openings 6.27 (target 2-4)
+```
+
+Still open: lane openings at 6.27 against a 2–4 target, and the mortar's
+objective share, which the section above argues is an objective-placement
+question rather than a mortar question.
+
 
 **The board was reshaped from 12×14 to 12×9** after playtest feedback that everything had to go in the front two rows. It was worse than it felt: soldiers and MGs could reach *zero* enemy tiles from row 11 back, so seven of nine combat units competed for two rows while four rows held scenery. Zones went 6 → 4 deep and no man's land 2 → 1, because `useful infantry rows = weapon range − gap depth` and that formula does not contain zone depth — shrinking the zone alone removes dead space without widening the band.
 

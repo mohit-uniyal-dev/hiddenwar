@@ -137,24 +137,26 @@ export const UNITS: Record<UnitTypeId, UnitSpec> = {
     flightTicks: toTicks(1.0), // 20
     ignoresLineOfSight: true,
     /*
-      30% against structures — the single number that decides whether a shape has
-      to break through to win.
+      NO structure tax, and this was measured rather than assumed.
 
-      The mortar was delivering 63.9% of all objective damage against a target of
-      under 35%, from the safety of its own back rank, over cover, from any
-      formation. That made objective progress independent of how you deployed:
-      no line ever had to be cracked, so the match came down to attrition, and
-      attrition rewards spreading out and nothing else. It also meant the
-      sandbag wall — the one genuinely convex thing in the game, where one
-      soldier cannot break a 90 HP bag inside the clock and three can — never
-      mattered, because the shells simply went over it.
+      The mortar delivers ~70% of all objective damage, well past the 35% target,
+      and the obvious fix is to tax indirect fire against structures so that
+      damage has to come through the lanes instead. It does not work. At 0.30 the
+      mortar's share fell to 43% — and matches stopped ending: timeouts went from
+      20% to 71%, objective kills from 65% to 10%, and the dominant formation
+      moved by three points. Every intermediate value bought the same trade at a
+      worse rate (0.85 already cost 11 points of timeouts for 3 of share).
 
-      Taxing indirect fire against structures pushes objective damage back into
-      the lanes, where the thresholds live, and gives massing force somewhere a
-      reason to exist again. Full damage against units is untouched: the mortar
-      is still the answer to a cluster, which is what it was designed to be.
+      The reason is geometry, not tuning. A node sits on the rear rank, so a
+      lane weapon can only reach one from the enemy front rank, in that exact
+      column, with clear line of sight — which is rare. Taxing the mortar does
+      not push objective damage into the lanes, because the lanes were never
+      able to carry it. It just removes the damage.
+
+      So the high share is a symptom of how the objective is placed, and the fix
+      belongs there. `structureMultiplier` stays wired up (`--mortarstruct` in
+      the harness) because it is now a lever with a known curve.
     */
-    structureMultiplier: 0.3,
   },
 
   sandbag: {

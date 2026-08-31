@@ -89,7 +89,9 @@ export function buildStats(state: BattleState): MatchStats {
       if (u.spec.unitClass === "structure") damageBlocked += u.damageTaken;
       if (u.destroyed) unitsLost++;
       else unitsSurvived++;
-      if (u.type === "hq") hqHpRemaining = u.destroyed ? 0 : u.hp;
+      // Summed, not assigned: a side has TWO nodes, and reporting only the
+      // last one understated a half-destroyed objective as a healthy one.
+      if (u.type === "hq" && !u.destroyed) hqHpRemaining += u.hp;
     }
     return { damageDealt, damageTaken, damageBlocked, unitsLost, unitsSurvived, hqHpRemaining };
   };

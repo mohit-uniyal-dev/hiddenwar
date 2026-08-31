@@ -227,13 +227,18 @@ function hasFiringLine(
 /**
  * Build one legal army for a team, in the shape of the given archetype.
  *
- * Nodes go down first at the drawn anchors, then sandbags, then the guns. That
- * order matters: sandbags block line of sight, so a weapon cannot be checked
- * for a clear shot until the walls it must shoot around are already standing.
+ * Nodes go down first at the drawn anchors, then everything else in roster
+ * order — guns before sandbags, which is load-bearing. Placing the walls first
+ * was tried and it quietly wrecked every archetype: a "guard" shape spends its
+ * sandbags on the tiles nearest the enemy, so the wall took the front rank and
+ * the front line had nowhere to form. Idle units went from 22.6% to 52.6%.
  *
  * Each unit takes the first tile that is legal AND has a firing line, working
  * down its archetype's preferred depths; it falls back to merely legal rather
- * than failing, so a generator can never emit an incomplete army.
+ * than failing, so a generator can never emit an incomplete army. A sandbag
+ * additionally refuses any tile that would blind a gun already standing behind
+ * it — nobody walls in their own weapons, and a generator that does inflates
+ * the idle metric with mistakes no player would make.
  */
 export function generateFormation(
   team: Team,
@@ -265,6 +270,26 @@ export function generateFormation(
     }
   }
 
+  /**
+   * Would dropping a wall here blind a gun that is already standing?
+   *
+   * Only neighbours matter: a line weapon is blocked from its own column and
+   * the machine gun's cone never reaches wider than two columns at the ranges
+   * in play, so anything further away cannot be affected.
+   */
+  const blindsFriendly = (row: number, col: number): boolean => {
+    const key = row * BOARD.cols + col;
+    blocks.add(key);
+    const blinded = units.some(
+      (u) =>
+        (UNITS[u.type].damage ?? 0) > 0 &&
+        Math.abs(u.col - col) <= 2 &&
+        !hasFiringLine(team, u.type, u.row, u.col, u.facing, blocks),
+    );
+    blocks.delete(key);
+    return blinded;
+  };
+
   const tryPlace = (
     type: UnitTypeId,
     depths: number[],
@@ -272,13 +297,20 @@ export function generateFormation(
     requireSight: boolean,
   ): boolean => {
     const unitFacing: Direction = type === "sandbag" ? "N" : facing;
+    const blocking = UNITS[type].blocksLineOfSight === true;
     for (const depth of depths) {
       const row = rowAtDepth(team, depth);
       for (const col of cols) {
         if (!canPlace(team, type, row, col, units, -1, craters)) continue;
-        if (requireSight && !hasFiringLine(team, type, row, col, unitFacing, blocks)) continue;
+        if (requireSight) {
+          if (blocking) {
+            if (blindsFriendly(row, col)) continue;
+          } else if (!hasFiringLine(team, type, row, col, unitFacing, blocks)) {
+            continue;
+          }
+        }
         units.push({ type, row, col, facing: unitFacing });
-        if (UNITS[type].blocksLineOfSight === true) blocks.add(row * BOARD.cols + col);
+        if (blocking) blocks.add(row * BOARD.cols + col);
         return true;
       }
     }
@@ -298,13 +330,7 @@ export function generateFormation(
   */
   const smart = sightAware && archetype.id !== "random";
 
-  // Walls first, then guns: see the note on ordering above.
-  const ordered = [
-    ...PLACEABLE_ARMY.filter((e) => e.type === "sandbag"),
-    ...PLACEABLE_ARMY.filter((e) => e.type !== "sandbag"),
-  ];
-
-  for (const entry of ordered) {
+  for (const entry of PLACEABLE_ARMY) {
     for (let n = 0; n < entry.count; n++) {
       const preferred = archetype.depths[entry.type as Exclude<UnitTypeId, "hq">];
       const spread = shuffled(ALL_COLS, rng);

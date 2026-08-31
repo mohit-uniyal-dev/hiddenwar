@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Board, type RenderUnit } from "../components/Board.tsx";
+import { DebriefPanel } from "../components/DebriefPanel.tsx";
 import { UnitIcon } from "../components/UnitIcon.tsx";
 import { archetypeById } from "../game/content/formations.ts";
 import { PUZZLES, evaluatePuzzle } from "../game/content/puzzles.ts";
@@ -10,7 +11,7 @@ const REASON_TEXT: Record<string, string> = {
   hqDestroyed: "HQ destroyed",
   armyDestroyed: "Army wiped out",
   deadAir: "No damage for 5s — decided on tiebreak",
-  timeCap: "60s time cap — decided on tiebreak",
+  timeCap: "45s time cap — decided on node damage",
   mutualHqDestruction: "Both HQs fell on the same tick",
 };
 
@@ -22,6 +23,9 @@ export function ResultsScreen() {
   const puzzleId = useGame((s) => s.puzzleId);
   const aiArchetype = useGame((s) => s.aiArchetype);
   const startPuzzle = useGame((s) => s.startPuzzle);
+  const deployments = useGame((s) => s.deployments);
+  const matchSeed = useGame((s) => s.matchSeed);
+  const craters = useGame((s) => s.craters);
 
   const puzzle = useMemo(() => activePuzzle({ mode, puzzleId }), [mode, puzzleId]);
   const outcome = useMemo(
@@ -128,6 +132,16 @@ export function ResultsScreen() {
             <div className="k">HQ HP · blue / orange</div>
           </div>
         </div>
+
+        {puzzle === null && (
+          <DebriefPanel
+            result={result}
+            deployments={deployments}
+            seed={matchSeed}
+            craters={craters}
+            allowSideSwitch={mode === "hotseat"}
+          />
+        )}
 
         <h2>Unit performance</h2>
         <table className="report-table">

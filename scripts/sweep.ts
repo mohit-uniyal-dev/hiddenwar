@@ -16,7 +16,6 @@
  * verdict — and read §51's playtest questions for the things it cannot measure.
  */
 
-import { BOARD, nodeSeparationForSeed, terrainForSeed } from "../src/game/config/gameConfig.ts";
 import { UNITS } from "../src/game/config/units.ts";
 import { ARCHETYPES, generateFormation } from "../src/game/content/formations.ts";
 import { simulateBattle } from "../src/game/engine/simulate.ts";
@@ -102,7 +101,7 @@ for (let i = 0; i < MATCHES; i++) {
   const archB = ARCHETYPES[rng.nextInt(ARCHETYPES.length)];
   if (archA === undefined || archB === undefined) continue;
 
-  const craters = terrainForSeed(seed, anchors);
+  const craters = EXPERIMENT.terrain(seed, anchors);
   const sight = EXPERIMENT.sightAware;
   const playerA = generateFormation("A", anchors, archA, rng, craters, sight);
   const playerB = generateFormation("B", anchors, archB, rng, craters, sight);

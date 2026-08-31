@@ -2099,3 +2099,121 @@ ul.objectives li.fail {
   border-radius: 50%;
   border: 1px solid rgba(46, 38, 24, 0.4);
 }
+
+/* ---------------------------------------------------------------- debrief
+   The report says what happened; the debrief says what to change. It sits
+   between the two so a player scrolling to "why did I lose" hits the
+   actionable half first and the per-unit table only if they want detail. */
+
+.debrief {
+  margin: 1.1rem 0 0.4rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--paper-line);
+}
+
+.debrief-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.debrief-head h2 {
+  margin: 0;
+}
+
+.debrief-tabs {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.debrief-tab {
+  padding: 0.25rem 0.7rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.debrief-tab.on {
+  opacity: 1;
+  color: #fff;
+}
+
+.debrief-tab.on.team-A {
+  background: var(--team-a);
+  border-color: var(--team-a-dark);
+}
+
+.debrief-tab.on.team-B {
+  background: var(--team-b);
+  border-color: var(--team-b-dark);
+}
+
+.debrief-sub {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 1rem 0 0.3rem;
+}
+
+/* One cell per column of the board, in board order, so the chart reads as the
+   board rather than as an abstract bar chart. */
+.lanes {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.2rem;
+  margin: 0.5rem 0 0.2rem;
+}
+
+.lane {
+  text-align: center;
+  font-size: 0.65rem;
+  color: var(--ink-soft);
+}
+
+.lane.empty .lane-col {
+  color: var(--warn);
+  font-weight: 700;
+}
+
+.lane-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  height: 3rem;
+  padding: 0 1px;
+  background: rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid var(--paper-line);
+}
+
+.lane-bars span {
+  flex: 1;
+  min-height: 1px;
+  border-radius: 1px 1px 0 0;
+}
+
+.lane-dealt {
+  background: var(--ok);
+}
+
+.lane-taken {
+  background: var(--warn);
+}
+
+.lane-col {
+  margin-top: 0.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lane-units {
+  font-size: 0.6rem;
+  color: var(--ink-faint);
+}
+
+.one-move.winning {
+  background: rgba(74, 124, 47, 0.18);
+  border-left-color: var(--ok);
+}

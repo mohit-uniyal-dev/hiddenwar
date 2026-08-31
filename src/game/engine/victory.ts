@@ -121,7 +121,7 @@ export function checkVictory(state: BattleState): Verdict | null {
   // 3. Dead air: 100 consecutive ticks (5s) with zero damage.
   if (state.ticksSinceDamage >= RULES.deadAirTicks) return tiebreak(state, "deadAir");
 
-  // 4. Hard cap: 1,200 ticks (60s), unconditional.
+  // 4. Hard cap: 900 ticks (45s), unconditional.
   if (state.tick >= RULES.maxTicks) return tiebreak(state, "timeCap");
 
   return null;

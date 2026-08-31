@@ -73,17 +73,25 @@ export interface HqAnchors {
  * place at 71.0%. Two eras, two shapes, the same ~70% — the endpoint of a
  * monotone axis, whichever end happens to be uphill.
  *
- * Drawing the gap per match bends the axis instead of flipping it. At 2, a mass
- * of two or three columns genuinely threatens both nodes and stranding is no
- * longer certain; at 5, the broad front is still right. There is no shape that
- * is correct before you have seen the board.
+ * Drawing the gap per match bends the axis instead of flipping it, and it does:
+ * at gap 2 a concentrated push wins 60.3% and the broad front 63.2%, at gap 3
+ * concentration falls to 49.8% while the front rises to 70.1%. A seventeen-point
+ * swing between two board draws is the first time in this game's life that the
+ * right shape has depended on something a player can read.
+ *
+ * The table is {2, 3} and not the wider {2..5} it started as, because that was
+ * measured too. Gaps of 4 and 5 are where the broad front is most dominant
+ * (70-71%), so including them only diluted the effect: over 2500 matches a
+ * side, {2,3} beat {2,3,4,5} on the dominant shape (63.8% vs 66.7%), on pace
+ * (42.6% vs 38.6% of matches in the 15-30s band) and on timeouts (10.0% vs
+ * 13.5%). Two genuinely different problems beat four barely-different ones.
  *
  * The DISTANCE is mirrored, never the columns. Mirrored columns made the lane
  * you attack and the lane you defend the same lane — one stack did both jobs,
  * measured at 80% with no counter. A shared distance carries none of that: it
  * only guarantees both players face the same problem.
  */
-export const NODE_SEPARATIONS = [2, 3, 4, 5] as const;
+export const NODE_SEPARATIONS = [2, 3] as const;
 
 /** The gap drawn for a match. Public because the harness buckets results by it. */
 export function nodeSeparationForSeed(seed: number): number {

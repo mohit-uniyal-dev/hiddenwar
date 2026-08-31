@@ -108,7 +108,7 @@ describe("time to kill (§C.4)", () => {
     // cannot realistically kill tanks". They can — just not inside a battle
     // where anything else is happening. Undisturbed for 39.5 seconds is not a
     // situation that survives contact with a real formation, but it IS inside
-    // the 60s cap, so the claim is "too slow to matter", not "impossible".
+    // the time cap, so the claim is "too slow to matter", not "impossible".
     const tank = result.stats.units.find((unit) => unit.type === "tank");
     expect(tank?.destroyedAtTick).toBe(790);
   });

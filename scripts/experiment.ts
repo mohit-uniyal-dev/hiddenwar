@@ -12,15 +12,19 @@ import {
   HQ_HEIGHT,
   type HqAnchors,
   hqAnchorsForSeed,
+  terrainForSeed,
 } from "../src/game/config/gameConfig.ts";
 import { UNITS } from "../src/game/config/units.ts";
 import { mulberry32 } from "../src/game/rng/mulberry32.ts";
+import type { Coord } from "../src/game/types.ts";
 
 export interface Experiment {
   /** Draw the node anchors — variable gap by default, the old `>= 3` under --legacysep. */
   readonly anchors: (seed: number) => HqAnchors;
   /** Off under --blindgen, which is how the old idle-unit figure was produced. */
   readonly sightAware: boolean;
+  /** Two per side and never in adjacent columns, or the old 2-3 anywhere. */
+  readonly terrain: (seed: number, anchors: HqAnchors) => Coord[];
   readonly label: string;
 }
 
@@ -58,6 +62,64 @@ function legacyAnchorsForSeed(seed: number): HqAnchors {
   };
 }
 
+/**
+ * The production node draw with a different separation table, so the shape of
+ * that distribution can be searched without editing the engine.
+ */
+function anchorsWithGaps(gaps: readonly number[]): (seed: number) => HqAnchors {
+  return (seed: number): HqAnchors => {
+    const gapRng = mulberry32((seed ^ 0x2545f491) >>> 0);
+    const gap = gaps[gapRng.nextInt(gaps.length)] ?? 3;
+    const rng = mulberry32(seed);
+    const rowA = BOARD.teamARows[1] - HQ_HEIGHT + 1;
+    const rowB = BOARD.teamBRows[0];
+    const pick = (): [number, number] => {
+      const first = rng.nextInt(BOARD.cols - gap);
+      return [first, first + gap];
+    };
+    const [a1, a2] = pick();
+    const [b1, b2] = pick();
+    return {
+      A: [
+        { row: rowA, col: a1 },
+        { row: rowA, col: a2 },
+      ],
+      B: [
+        { row: rowB, col: b1 },
+        { row: rowB, col: b2 },
+      ],
+    };
+  };
+}
+
+/** Craters as they were drawn before the density and spacing rules. */
+function legacyTerrainForSeed(seed: number, anchors: HqAnchors): Coord[] {
+  const rng = mulberry32((seed ^ 0x7f4a7c15) >>> 0);
+  const count = 2 + rng.nextInt(2);
+  const blockedCols = new Set<number>();
+  for (const side of [anchors.A, anchors.B]) for (const n of side) blockedCols.add(n.col);
+
+  const candidates: Coord[] = [];
+  for (const row of [BOARD.teamARows[0], BOARD.teamARows[0] + 1]) {
+    for (let col = 0; col < BOARD.cols; col++) {
+      if (!blockedCols.has(col)) candidates.push({ row, col });
+    }
+  }
+
+  const craters: Coord[] = [];
+  const taken = new Set<number>();
+  for (let i = 0; i < count && candidates.length > 0; i++) {
+    const pick = candidates[rng.nextInt(candidates.length)];
+    if (pick === undefined) break;
+    const key = pick.row * BOARD.cols + pick.col;
+    if (taken.has(key)) continue;
+    taken.add(key);
+    craters.push(pick);
+    craters.push({ row: BOARD.rows - 1 - pick.row, col: BOARD.cols - 1 - pick.col });
+  }
+  return craters;
+}
+
 export function numberFlag(args: string[], name: string, fallback: number): number {
   const i = args.indexOf(`--${name}`);
   if (i === -1) return fallback;
@@ -77,6 +139,17 @@ export function readExperiment(args: string[]): Experiment {
 
   const blindGen = args.includes("--blindgen");
   if (blindGen) parts.push("blind placement");
+
+  // --gaps 2,3 searches the separation distribution.
+  const gapArg = args[args.indexOf("--gaps") + 1];
+  const gaps =
+    args.includes("--gaps") && gapArg !== undefined
+      ? gapArg.split(",").map(Number).filter(Number.isFinite)
+      : [];
+  if (gaps.length > 0) parts.push(`node gaps {${gaps.join(",")}}`);
+
+  const legacyCraters = args.includes("--legacycraters");
+  if (legacyCraters) parts.push("legacy craters (2-3, any column)");
 
   // --mortarstruct 1 restores indirect fire's full damage against structures.
   const struct = numberFlag(args, "mortarstruct", -1);
@@ -98,8 +171,13 @@ export function readExperiment(args: string[]): Experiment {
   }
 
   return {
-    anchors: legacySep ? legacyAnchorsForSeed : hqAnchorsForSeed,
+    anchors: legacySep
+      ? legacyAnchorsForSeed
+      : gaps.length > 0
+        ? anchorsWithGaps(gaps)
+        : hqAnchorsForSeed,
     sightAware: !blindGen,
+    terrain: legacyCraters ? legacyTerrainForSeed : terrainForSeed,
     label: parts.length === 0 ? "shipping config" : parts.join(", "),
   };
 }

@@ -11,7 +11,7 @@ const REASON_TEXT: Record<string, string> = {
   hqDestroyed: "HQ destroyed",
   armyDestroyed: "Army wiped out",
   deadAir: "No damage for 5s — decided on tiebreak",
-  timeCap: "60s time cap — decided on tiebreak",
+  timeCap: "45s time cap — decided on node damage",
   mutualHqDestruction: "Both HQs fell on the same tick",
 };
 const COUNTDOWN_MS = 2600;
