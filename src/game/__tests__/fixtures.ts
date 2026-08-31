@@ -16,7 +16,7 @@ export function deploy(team: Team, units: PlacedUnit[]): Deployment {
  * sandbags loses at tick 0 and the test never runs.
  */
 export function idleGuard(team: Team): PlacedUnit {
-  return team === "A" ? u("soldier", 8, 0, "S") : u("soldier", 0, 0, "N");
+  return team === "A" ? u("soldier", 10, 0, "S") : u("soldier", 0, 0, "N");
 }
 
 /**
@@ -29,50 +29,50 @@ export function idleGuard(team: Team): PlacedUnit {
 export function fullArmyA(): Deployment {
   return deploy("A", [
     // Front rank — the only rows infantry can reach from.
-    u("soldier", 5, 2),
-    u("soldier", 5, 3),
-    u("soldier", 5, 4),
-    u("soldier", 5, 5),
-    u("soldier", 5, 6),
-    u("mg", 5, 7),
-    u("mg", 5, 8),
-    // Tanks behind the line: living units do not block, so the lanes stay open.
-    u("tank", 6, 2),
-    u("mg", 6, 8),
-    u("mortar", 7, 9),
-    u("sandbag", 6, 4),
-    u("sandbag", 6, 5),
-    u("sandbag", 6, 6),
-    u("sandbag", 6, 7),
-    u("sandbag", 7, 4),
-    u("sandbag", 7, 7),
+    u("soldier", 6, 1),
+    u("soldier", 6, 2),
+    u("soldier", 6, 3),
+    u("soldier", 6, 4),
+    u("soldier", 6, 5),
+    u("mg", 7, 1),
+    u("mg", 7, 3),
+    u("mg", 7, 5),
+    // Column 6 is clear top to bottom, so the tank is never self-blocked.
+    u("tank", 7, 6),
+    u("mortar", 8, 1),
+    u("sandbag", 8, 2),
+    u("sandbag", 8, 3),
     u("sandbag", 8, 4),
-    u("sandbag", 8, 7),
-    u("hq", 7, 5),
+    u("sandbag", 8, 5),
+    u("sandbag", 9, 1),
+    u("sandbag", 9, 2),
+    u("sandbag", 9, 5),
+    u("sandbag", 9, 6),
+    u("hq", 9, 3),
   ]);
 }
 
 export function fullArmyB(): Deployment {
   return deploy("B", [
-    u("soldier", 3, 2, "S"),
-    u("soldier", 3, 3, "S"),
-    u("soldier", 3, 4, "S"),
-    u("soldier", 3, 5, "S"),
-    u("soldier", 3, 6, "S"),
-    u("mg", 3, 7, "S"),
-    u("mg", 3, 8, "S"),
-    u("tank", 2, 2, "S"),
-    u("mg", 2, 8, "S"),
-    u("mortar", 1, 9, "S"),
+    u("soldier", 4, 1, "S"),
+    u("soldier", 4, 2, "S"),
+    u("soldier", 4, 3, "S"),
+    u("soldier", 4, 4, "S"),
+    u("soldier", 4, 5, "S"),
+    u("mg", 3, 1, "S"),
+    u("mg", 3, 3, "S"),
+    u("mg", 3, 5, "S"),
+    u("tank", 3, 6, "S"),
+    u("mortar", 2, 1, "S"),
+    u("sandbag", 2, 2),
+    u("sandbag", 2, 3),
     u("sandbag", 2, 4),
     u("sandbag", 2, 5),
-    u("sandbag", 2, 6),
-    u("sandbag", 2, 7),
-    u("sandbag", 1, 4),
-    u("sandbag", 1, 7),
-    u("sandbag", 0, 4),
-    u("sandbag", 0, 7),
-    u("hq", 0, 5),
+    u("sandbag", 1, 1),
+    u("sandbag", 1, 2),
+    u("sandbag", 1, 5),
+    u("sandbag", 1, 6),
+    u("hq", 0, 3),
   ]);
 }
 

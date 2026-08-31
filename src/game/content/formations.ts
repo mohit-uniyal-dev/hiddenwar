@@ -51,21 +51,21 @@ export const ARCHETYPES: readonly Archetype[] = [
     id: "line",
     label: "Front line",
     tell: "Holds the whole width of the front rank. Solid everywhere, concentrated nowhere — it rarely masses enough force on one lane to finish an objective quickly.",
-    depths: { soldier: [0], mg: [0, 1], tank: [1, 0], mortar: [3, 2], sandbag: [1, 2] },
+    depths: { soldier: [0], mg: [0, 1], tank: [1, 0], mortar: [4, 3], sandbag: [1, 2] },
     sandbags: "guard",
   },
   {
     id: "turtle",
     label: "Turtle",
     tell: "Sits back and waits. Ceding the front rank means most of its army spends the battle out of range of anything.",
-    depths: { soldier: [1, 2], mg: [1, 2], tank: [2, 1], mortar: [3], sandbag: [2, 3] },
+    depths: { soldier: [1, 2], mg: [1, 2], tank: [2, 1], mortar: [4], sandbag: [2, 3] },
     sandbags: "guard",
   },
   {
     id: "spread",
     label: "Spread",
     tell: "Deliberately dispersed to blunt splash. Safe from the mortar, but thin in every individual lane.",
-    depths: { soldier: [0, 1, 2], mg: [0, 1], tank: [1, 2], mortar: [2, 3], sandbag: [1, 2, 3] },
+    depths: { soldier: [0, 1, 2], mg: [0, 1], tank: [1, 2], mortar: [2, 3], sandbag: [1, 2, 3, 4] },
     sandbags: "scatter",
   },
   {
@@ -79,7 +79,7 @@ export const ARCHETYPES: readonly Archetype[] = [
     id: "hqrush",
     label: "HQ rush",
     tell: "Everything aligned on your HQ's column. Brutal if the lane opens — and it collapses against a defence that concentrates on the same lane.",
-    depths: { soldier: [0, 1], mg: [0, 1], tank: [1, 0], mortar: [2, 3], sandbag: [2, 3] },
+    depths: { soldier: [0, 1], mg: [0, 1], tank: [1, 0], mortar: [3, 4], sandbag: [2, 3] },
     sandbags: "scatter",
     columnBias: "enemyHq",
   },
@@ -87,7 +87,7 @@ export const ARCHETYPES: readonly Archetype[] = [
     id: "hqguard",
     label: "HQ lane guard",
     tell: "Everything massed on its own HQ's column. Nearly unbreakable head-on, but it concedes the rest of the board, so it struggles to reach your objective.",
-    depths: { soldier: [0, 1], mg: [0, 1], tank: [1, 2], mortar: [3], sandbag: [1, 2] },
+    depths: { soldier: [0, 1], mg: [0, 1], tank: [1, 2], mortar: [4], sandbag: [1, 2] },
     sandbags: "guard",
     columnBias: "ownHq",
   },
@@ -96,11 +96,11 @@ export const ARCHETYPES: readonly Archetype[] = [
     label: "Random (control)",
     tell: "No particular shape at all. Unpredictable, and usually incoherent.",
     depths: {
-      soldier: [0, 1, 2, 3],
-      mg: [0, 1, 2, 3],
-      tank: [0, 1, 2, 3],
-      mortar: [0, 1, 2, 3],
-      sandbag: [0, 1, 2, 3],
+      soldier: [0, 1, 2, 3, 4],
+      mg: [0, 1, 2, 3, 4],
+      tank: [0, 1, 2, 3, 4],
+      mortar: [0, 1, 2, 3, 4],
+      sandbag: [0, 1, 2, 3, 4],
     },
     sandbags: "scatter",
   },
@@ -138,7 +138,8 @@ function shuffled(values: number[], rng: Rng): number[] {
 }
 
 const ALL_COLS = Array.from({ length: BOARD.cols }, (_, i) => i);
-const ALL_DEPTHS = [0, 1, 2, 3];
+/** Depth 0 is the rank nearest the enemy; zones are five rows deep. */
+const ALL_DEPTHS = [0, 1, 2, 3, 4];
 
 /**
  * Build one legal army for a team, in the shape of the given archetype.

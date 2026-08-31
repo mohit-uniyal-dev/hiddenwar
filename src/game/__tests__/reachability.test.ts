@@ -91,9 +91,9 @@ describe("every legal HQ placement is contestable", () => {
   const anchors: number[] = [];
   for (let r = BOARD.teamARows[0]; r <= BOARD.teamARows[1] - 1; r++) anchors.push(r);
 
-  it("has four rows of zone and three legal anchors", () => {
-    expect(BOARD.teamARows[1] - BOARD.teamARows[0] + 1).toBe(4);
-    expect(anchors).toEqual([5, 6, 7]);
+  it("has five rows of zone and four legal anchors", () => {
+    expect(BOARD.teamARows[1] - BOARD.teamARows[0] + 1).toBe(5);
+    expect(anchors).toEqual([6, 7, 8, 9]);
   });
 
   it.each(anchors)("an HQ anchored at row %i is reachable by tanks", (row) => {

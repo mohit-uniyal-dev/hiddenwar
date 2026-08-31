@@ -21,27 +21,23 @@ export function toTicks(seconds: number): number {
 }
 
 export const BOARD = {
-  cols: 12,
   /**
-   * Nine rows, not fourteen.
+   * Eight columns, eleven rows — portrait, for one-handed play.
    *
-   * The original 6-deep zones with a 2-row gap left most of the board inert:
-   * a soldier or MG placed on row 11 or deeper could reach ZERO enemy tiles,
-   * so seven of your nine combat units were competing for two rows while four
-   * rows held scenery. Useful infantry rows = weapon range - gap depth, so
-   * narrowing the gap to one row is what actually widens the playable band.
-   *
-   * At 4 deep with a 1-row gap, a tank on the front rank also covers the whole
-   * enemy zone — which closes the back-row HQ sanctuary organically, and let
-   * the artificial "HQ may not sit on your back row" rule be deleted.
+   * Narrowing is what buys touch ergonomics: at 12 columns a 360px phone gives
+   * ~28px tiles, well under the 44px guidance in §E.6; at 8 it gives ~43px.
+   * Height does NOT help — past about eleven rows the viewport becomes the
+   * binding constraint and tiles start shrinking again, so going taller than
+   * this would cost tile size rather than gain it.
    */
-  rows: 9,
-  /** Rows 0-3 (displayed as 1-4) belong to Player B. */
-  teamBRows: [0, 3] as const,
-  /** Row 4 is no man's land. Nothing may ever be placed there (§B.1). */
-  noMansLandRows: [4, 4] as const,
-  /** Rows 5-8 (displayed as 6-9) belong to Player A. */
-  teamARows: [5, 8] as const,
+  cols: 8,
+  rows: 11,
+  /** Rows 0-4 (displayed as 1-5) belong to Player B. */
+  teamBRows: [0, 4] as const,
+  /** Row 5 is no man's land. Nothing may ever be placed there (§B.1). */
+  noMansLandRows: [5, 5] as const,
+  /** Rows 6-10 (displayed as 7-11) belong to Player A. */
+  teamARows: [6, 10] as const,
 } as const;
 
 /** The HQ footprint. */
@@ -86,8 +82,8 @@ export function hqAnchorsForSeed(seed: number): HqAnchors {
 
 /** The centre position, used by hand-authored puzzles and as a fallback. */
 export const HQ_ANCHOR: HqAnchors = {
-  A: { row: 7, col: 5 },
-  B: { row: 0, col: 5 },
+  A: { row: 9, col: 3 },
+  B: { row: 0, col: 3 },
 };
 
 export const RULES = {
