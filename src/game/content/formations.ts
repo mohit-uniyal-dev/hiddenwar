@@ -15,11 +15,26 @@
 
 import { BOARD, type HqAnchors, zoneOwner } from "../config/gameConfig.ts";
 import { PLACEABLE_ARMY, UNITS } from "../config/units.ts";
-import { conePattern, footprint, indirectPattern, linePattern } from "../engine/geometry.ts";
+import {
+  conePattern,
+  indirectPattern,
+  linePattern,
+  shapeOffsets,
+  tilesOf,
+  weaponTile,
+} from "../engine/geometry.ts";
 import { hasLineOfSight } from "../engine/lineOfSight.ts";
 import { canPlace } from "../models/deployment.ts";
 import type { Rng } from "../rng/mulberry32.ts";
-import type { Coord, Deployment, Direction, PlacedUnit, Team, UnitTypeId } from "../types.ts";
+import type {
+  Coord,
+  Deployment,
+  Direction,
+  Orientation,
+  PlacedUnit,
+  Team,
+  UnitTypeId,
+} from "../types.ts";
 
 export type ArchetypeId =
   | "line"
@@ -200,13 +215,17 @@ function hasFiringLine(
   col: number,
   facing: Direction,
   blocks: ReadonlySet<number>,
+  orientation: Orientation = 0,
 ): boolean {
   const spec = UNITS[type];
   if ((spec.damage ?? 0) === 0) return true; // sandbags and nodes never fire
   const min = spec.minRange ?? 1;
   const max = spec.maxRange ?? 1;
   const enemy: Team = team === "A" ? "B" : "A";
-  const origin: Coord = { row, col };
+  // Multi-cell units fire from their first cell, which for a rotated L is not
+  // the anchor — checking sight from the anchor would clear a lane the gun
+  // cannot actually see down.
+  const origin: Coord = weaponTile(row, col, spec, orientation);
 
   // Indirect fire ignores cover, so reach is the whole question.
   if (spec.ignoresLineOfSight === true) {
@@ -240,6 +259,17 @@ function hasFiringLine(
  * it — nobody walls in their own weapons, and a generator that does inflates
  * the idle metric with mistakes no player would make.
  */
+/**
+ * Build an army, retrying until it packs.
+ *
+ * With every piece 1x1 the first attempt always succeeds and this costs
+ * nothing. With real footprints it matters a great deal: laying pieces down one
+ * at a time without looking back fails to fit the whole army on most boards, so
+ * a single-pass generator would silently measure short armies and blame the
+ * design for what was really the placer. Each retry reshuffles the order the
+ * columns and depths are tried in, which is the cheap stand-in for a person
+ * shuffling pieces around until they fit.
+ */
 export function generateFormation(
   team: Team,
   anchors: HqAnchors,
@@ -248,6 +278,25 @@ export function generateFormation(
   craters: readonly Coord[] = [],
   /** Off only for the harness, to measure how much of "idle units" was the tool. */
   sightAware = true,
+): Deployment {
+  const wanted = PLACEABLE_ARMY.reduce((sum, entry) => sum + entry.count, 0);
+  let best: Deployment | null = null;
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const army = layOut(team, anchors, archetype, rng, craters, sightAware);
+    const placed = army.units.filter((u) => u.type !== "hq").length;
+    if (placed >= wanted) return army;
+    if (best === null || placed > best.units.length - anchors[team].length) best = army;
+  }
+  return best ?? layOut(team, anchors, archetype, rng, craters, sightAware);
+}
+
+function layOut(
+  team: Team,
+  anchors: HqAnchors,
+  archetype: Archetype,
+  rng: Rng,
+  craters: readonly Coord[],
+  sightAware: boolean,
 ): Deployment {
   const nodes = anchors[team];
   const units: PlacedUnit[] = nodes.map((a) => ({
@@ -264,7 +313,7 @@ export function generateFormation(
   for (const c of craters) blocks.add(c.row * BOARD.cols + c.col);
   for (const side of [anchors.A, anchors.B]) {
     for (const n of side) {
-      for (const t of footprint(n.row, n.col, UNITS.hq.width, UNITS.hq.height)) {
+      for (const t of tilesOf(n.row, n.col, UNITS.hq)) {
         blocks.add(t.row * BOARD.cols + t.col);
       }
     }
@@ -284,10 +333,28 @@ export function generateFormation(
       (u) =>
         (UNITS[u.type].damage ?? 0) > 0 &&
         Math.abs(u.col - col) <= 2 &&
-        !hasFiringLine(team, u.type, u.row, u.col, u.facing, blocks),
+        !hasFiringLine(team, u.type, u.row, u.col, u.facing, blocks, u.orientation ?? 0),
     );
     blocks.delete(key);
     return blinded;
+  };
+
+  /**
+   * Distinct orientations for a type. A 1x1 or a square has exactly one, so
+   * the existing roster searches no harder than it did before.
+   */
+  const formsFor = (type: UnitTypeId): Orientation[] => {
+    const seen = new Set<string>();
+    const out: Orientation[] = [];
+    for (const turns of [0, 1, 2, 3] as const) {
+      const shape = shapeOffsets(UNITS[type], turns)
+        .map((c) => `${c.row},${c.col}`)
+        .join(" ");
+      if (seen.has(shape)) continue;
+      seen.add(shape);
+      out.push(turns);
+    }
+    return out;
   };
 
   const tryPlace = (
@@ -298,20 +365,34 @@ export function generateFormation(
   ): boolean => {
     const unitFacing: Direction = type === "sandbag" ? "N" : facing;
     const blocking = UNITS[type].blocksLineOfSight === true;
+    const forms = formsFor(type);
     for (const depth of depths) {
       const row = rowAtDepth(team, depth);
       for (const col of cols) {
-        if (!canPlace(team, type, row, col, units, -1, craters)) continue;
-        if (requireSight) {
-          if (blocking) {
-            if (blindsFriendly(row, col)) continue;
-          } else if (!hasFiringLine(team, type, row, col, unitFacing, blocks)) {
-            continue;
+        for (const orientation of forms) {
+          if (!canPlace(team, type, row, col, units, -1, craters, orientation)) continue;
+          if (requireSight) {
+            if (blocking) {
+              if (blindsFriendly(row, col)) continue;
+            } else if (!hasFiringLine(team, type, row, col, unitFacing, blocks, orientation)) {
+              continue;
+            }
           }
+          // Omitted when zero so an unrotated army is byte-identical to one
+          // built before shapes existed — which is what keeps the golden log
+          // and every match code in circulation valid.
+          units.push(
+            orientation === 0
+              ? { type, row, col, facing: unitFacing }
+              : { type, row, col, facing: unitFacing, orientation },
+          );
+          if (blocking) {
+            for (const t of tilesOf(row, col, UNITS[type], orientation)) {
+              blocks.add(t.row * BOARD.cols + t.col);
+            }
+          }
+          return true;
         }
-        units.push({ type, row, col, facing: unitFacing });
-        if (blocking) blocks.add(row * BOARD.cols + col);
-        return true;
       }
     }
     return false;
@@ -361,6 +442,8 @@ export function generateFormation(
       // then anywhere legal at all — never emit a short army.
       if (smart && tryPlace(entry.type, depths, cols, true)) continue;
       if (tryPlace(entry.type, depths, cols, false)) continue;
+      // With multi-tile pieces an army can genuinely fail to pack. A short army
+      // is a legitimate outcome, not a bug — the harness reports how often.
       tryPlace(entry.type, shuffled(ALL_DEPTHS, rng), shuffled(ALL_COLS, rng), false);
     }
   }

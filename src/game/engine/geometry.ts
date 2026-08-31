@@ -135,7 +135,7 @@ export function splashArea(centre: Coord): Coord[] {
   return tiles;
 }
 
-/** The tiles a unit occupies, anchored at its top-left. */
+/** The tiles a rectangular unit occupies, anchored at its top-left. */
 export function footprint(row: number, col: number, width: number, height: number): Coord[] {
   if (width === 1 && height === 1) return [{ row, col }];
   const tiles: Coord[] = [];
@@ -145,4 +145,58 @@ export function footprint(row: number, col: number, width: number, height: numbe
     }
   }
   return tiles;
+}
+
+/** The minimum a shape needs to be laid out: its footprint, however odd. */
+export interface Shaped {
+  readonly width: number;
+  readonly height: number;
+  readonly cells?: readonly Coord[];
+}
+
+/**
+ * A unit's footprint as offsets from its anchor, after `turns` quarter turns.
+ *
+ * The order of the returned cells is load-bearing and preserved through the
+ * rotation: index 0 is the weapon, the rest is hull (see UnitSpec.cells). It is
+ * NOT re-sorted, because sorting would silently move a unit's gun.
+ *
+ * Rotation is (r, c) -> (c, -r), then the whole shape is shifted so its topmost
+ * and leftmost cells sit at zero. That keeps the anchor meaning "top-left of
+ * the bounding box" for every orientation, which is what placement, occupancy
+ * and hit-testing all assume.
+ */
+export function shapeOffsets(spec: Shaped, turns = 0): Coord[] {
+  const base =
+    spec.cells ?? footprint(0, 0, spec.width, spec.height).map((c) => ({ row: c.row, col: c.col }));
+  if (base.length === 1 && turns === 0) return [{ row: 0, col: 0 }];
+
+  let cells = base.map((c) => ({ row: c.row, col: c.col }));
+  for (let turn = 0; turn < (turns & 3); turn++) {
+    cells = cells.map((c) => ({ row: c.col, col: -c.row }));
+  }
+  let minRow = cells[0]?.row ?? 0;
+  let minCol = cells[0]?.col ?? 0;
+  for (const c of cells) {
+    if (c.row < minRow) minRow = c.row;
+    if (c.col < minCol) minCol = c.col;
+  }
+  return cells.map((c) => ({ row: c.row - minRow, col: c.col - minCol }));
+}
+
+/** The board tiles a unit stands on. */
+export function tilesOf(row: number, col: number, spec: Shaped, turns = 0): Coord[] {
+  return shapeOffsets(spec, turns).map((o) => ({ row: row + o.row, col: col + o.col }));
+}
+
+/**
+ * The tile a unit actually fires from — its first cell.
+ *
+ * Range, arcs and line of sight all measure from here rather than from the
+ * anchor, which for an L-shape is a corner of the bounding box that may not
+ * even be part of the unit.
+ */
+export function weaponTile(row: number, col: number, spec: Shaped, turns = 0): Coord {
+  const first = shapeOffsets(spec, turns)[0];
+  return first === undefined ? { row, col } : { row: row + first.row, col: col + first.col };
 }

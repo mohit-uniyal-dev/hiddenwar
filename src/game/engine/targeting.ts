@@ -14,7 +14,6 @@
 
 import { BOARD } from "../config/gameConfig.ts";
 import type { Coord, Unit } from "../types.ts";
-import { footprint } from "./geometry.ts";
 import {
   chebyshev,
   conePattern,
@@ -31,7 +30,7 @@ export function patternTiles(unit: Unit): Coord[] {
   const { spec } = unit;
   const min = spec.minRange ?? 1;
   const max = spec.maxRange ?? 0;
-  const origin = { row: unit.row, col: unit.col };
+  const origin = unit.origin;
   switch (spec.pattern) {
     case "line":
       return linePattern(origin, unit.facing, min, max);
@@ -79,8 +78,8 @@ function lineCandidates(state: BattleState, unit: Unit): Unit[] {
   const seen = new Set<number>();
 
   for (let d = 1; d <= max; d++) {
-    const row = unit.row + dr * d;
-    const col = unit.col + dc * d;
+    const row = unit.origin.row + dr * d;
+    const col = unit.origin.col + dc * d;
     // Craters stop a ray exactly as a sandbag does, but can never be shot away.
     if (state.craters.has(row * BOARD.cols + col)) break;
     const occupant = unitAt(state, row, col);
@@ -103,7 +102,7 @@ function lineCandidates(state: BattleState, unit: Unit): Unit[] {
 function coneCandidates(state: BattleState, unit: Unit): Unit[] {
   const found: Unit[] = [];
   const seen = new Set<number>();
-  const origin = { row: unit.row, col: unit.col };
+  const origin = unit.origin;
 
   for (const tile of patternTiles(unit)) {
     const occupant = unitAt(state, tile.row, tile.col);
@@ -119,8 +118,8 @@ function coneCandidates(state: BattleState, unit: Unit): Unit[] {
 function distanceTo(unit: Unit, other: Unit): number {
   // Nearest tile of a multi-tile target.
   let best = Number.POSITIVE_INFINITY;
-  for (const t of footprint(other.row, other.col, other.spec.width, other.spec.height)) {
-    const d = chebyshev(unit.row, unit.col, t.row, t.col);
+  for (const t of other.tiles) {
+    const d = chebyshev(unit.origin.row, unit.origin.col, t.row, t.col);
     if (d < best) best = d;
   }
   return best;
@@ -198,7 +197,7 @@ export function selectClusterTile(state: BattleState, unit: Unit): ClusterChoice
   let best: ClusterChoice | null = null;
   let tied: ClusterChoice[] = [];
 
-  for (const tile of indirectPattern({ row: unit.row, col: unit.col }, min, max)) {
+  for (const tile of indirectPattern(unit.origin, min, max)) {
     const occupant = unitAt(state, tile.row, tile.col);
     if (occupant === null || occupant.team === unit.team) continue;
 
@@ -227,11 +226,11 @@ export function selectClusterTile(state: BattleState, unit: Unit): ClusterChoice
   // Tie-break: closest tile first...
   let nearest = Number.POSITIVE_INFINITY;
   for (const c of tied) {
-    const d = chebyshev(unit.row, unit.col, c.tile.row, c.tile.col);
+    const d = chebyshev(unit.origin.row, unit.origin.col, c.tile.row, c.tile.col);
     if (d < nearest) nearest = d;
   }
   const closest = tied.filter(
-    (c) => chebyshev(unit.row, unit.col, c.tile.row, c.tile.col) === nearest,
+    (c) => chebyshev(unit.origin.row, unit.origin.col, c.tile.row, c.tile.col) === nearest,
   );
   if (closest.length === 1) return closest[0] ?? best;
 
@@ -246,15 +245,15 @@ export function selectClusterTile(state: BattleState, unit: Unit): ClusterChoice
 export function visibleTiles(state: BattleState, unit: Unit): Coord[] {
   if (unit.spec.ignoresLineOfSight === true) return patternTiles(unit);
 
-  const origin = { row: unit.row, col: unit.col };
+  const origin = unit.origin;
   const out: Coord[] = [];
 
   if (unit.spec.pattern === "line") {
     const { dr, dc } = step(unit.facing);
     const max = unit.spec.maxRange ?? 0;
     for (let d = 1; d <= max; d++) {
-      const row = unit.row + dr * d;
-      const col = unit.col + dc * d;
+      const row = unit.origin.row + dr * d;
+      const col = unit.origin.col + dc * d;
       if (row < 0 || col < 0) break;
       out.push({ row, col });
       if (isBlockerAt(state, row, col)) break; // the ray stops here

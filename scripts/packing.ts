@@ -112,6 +112,38 @@ const SETS: readonly ShapeSet[] = [
     ],
   },
   {
+    label: "shapes, 15 tiles",
+    pieces: [
+      { name: "tank", count: 1, cells: O },
+      { name: "mortar", count: 1, cells: L3 },
+      { name: "atgun", count: 1, cells: I3 },
+      { name: "mg", count: 1, cells: L3 },
+      { name: "squad", count: 1, cells: DOM },
+      { name: "rifle", count: 3, cells: ONE },
+    ],
+  },
+  {
+    label: "shapes, 18 tiles",
+    pieces: [
+      { name: "tank", count: 1, cells: O },
+      { name: "mortar", count: 1, cells: T4 },
+      { name: "atgun", count: 1, cells: I3 },
+      { name: "mg", count: 2, cells: L3 },
+      { name: "squad", count: 2, cells: DOM },
+    ],
+  },
+  {
+    label: "shapes, 21 tiles",
+    pieces: [
+      { name: "tank", count: 1, cells: O },
+      { name: "mortar", count: 1, cells: T4 },
+      { name: "atgun", count: 1, cells: I3 },
+      { name: "mg", count: 2, cells: L3 },
+      { name: "squad", count: 2, cells: DOM },
+      { name: "bunker", count: 1, cells: I3 },
+    ],
+  },
+  {
     label: "mixed: heavies get shapes",
     pieces: [
       { name: "soldier", count: 5, cells: ONE },
@@ -123,7 +155,15 @@ const SETS: readonly ShapeSet[] = [
     ],
   },
   {
-    label: "true tetris, 8 pieces",
+    label: "1x1 only, 21 tiles",
+    pieces: [{ name: "rifle", count: 21, cells: ONE }],
+  },
+  {
+    label: "1x1 only, 25 tiles",
+    pieces: [{ name: "rifle", count: 25, cells: ONE }],
+  },
+  {
+    label: "shapes, 25 tiles",
     pieces: [
       { name: "tank", count: 1, cells: O },
       { name: "mortar", count: 1, cells: T4 },
@@ -133,18 +173,25 @@ const SETS: readonly ShapeSet[] = [
       { name: "bunker", count: 1, cells: S4 },
     ],
   },
-  {
-    label: "true tetris, oversupplied",
-    pieces: [
-      { name: "tank", count: 1, cells: O },
-      { name: "mortar", count: 1, cells: T4 },
-      { name: "atgun", count: 2, cells: I3 },
-      { name: "mg", count: 2, cells: L3 },
-      { name: "squad", count: 3, cells: DOM },
-      { name: "bunker", count: 2, cells: S4 },
-    ],
-  },
 ];
+
+/**
+ * The oversupplied roster: deliberately more army than the zone can hold, so
+ * the player has to leave something behind. That is the decision the whole
+ * idea is for, and it cannot be measured by counting arrangements of a fixed
+ * army — it needs counting which ARMIES are fieldable at all.
+ */
+const OVERSUPPLY: ShapeSet = {
+  label: "oversupplied roster",
+  pieces: [
+    { name: "tank", count: 1, cells: O },
+    { name: "mortar", count: 1, cells: T4 },
+    { name: "atgun", count: 2, cells: I3 },
+    { name: "mg", count: 2, cells: L3 },
+    { name: "squad", count: 3, cells: DOM },
+    { name: "bunker", count: 2, cells: S4 },
+  ],
+};
 
 /** Blocked cells in Blue's zone for one board draw: node footprints and craters. */
 function blockedFor(seed: number): boolean[] {
@@ -285,16 +332,16 @@ function countPackings(
 
 const seeds = Array.from({ length: BOARDS }, (_, i) => 4000 + i * 3);
 const median = (xs: number[]): number => {
-  const s = [...xs].sort((a, b) => a - b);
-  return s[Math.floor(s.length / 2)] ?? 0;
+  const sorted = [...xs].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
 };
 const big = (n: number): string => (n >= CAP ? `>${(CAP / 1e6).toFixed(0)}M` : n.toLocaleString());
 
-console.log(`\nPACKING FEASIBILITY  —  ${BOARDS} board draws, 4x${COLS} zone\n`);
+console.log(`\nPACKING FEASIBILITY  —  ${BOARDS} board draws, 4x${COLS} zone, 26 free tiles\n`);
 console.log(
-  `${"shape set".padEnd(28)} ${"tiles".padStart(6)} ${"slack".padStart(6)} ${"solvable".padStart(9)} ${"median arrangements".padStart(21)} ${"front line".padStart(11)}`,
+  `${"shape set".padEnd(28)} ${"tiles".padStart(6)} ${"solvable".padStart(9)} ${"arrangements".padStart(14)} ${"front line".padStart(11)}`,
 );
-console.log("-".repeat(88));
+console.log("-".repeat(74));
 
 for (const set of SETS) {
   const tiles = set.pieces.reduce((sum, p) => sum + p.count * p.cells.length, 0);
@@ -310,12 +357,76 @@ for (const set of SETS) {
     if (countPackings(set, blocked, 1, true) > 0) frontLine++;
   }
 
-  const free = 26;
   console.log(
-    `${set.label.padEnd(28)} ${String(tiles).padStart(6)} ${String(free - tiles).padStart(6)} ${`${((solvable / BOARDS) * 100).toFixed(0)}%`.padStart(9)} ${big(median(counts)).padStart(21)} ${`${((frontLine / BOARDS) * 100).toFixed(0)}%`.padStart(11)}`,
+    `${set.label.padEnd(28)} ${String(tiles).padStart(6)} ${`${((solvable / BOARDS) * 100).toFixed(0)}%`.padStart(9)} ${big(median(counts)).padStart(14)} ${`${((frontLine / BOARDS) * 100).toFixed(0)}%`.padStart(11)}`,
   );
 }
 
 console.log(
-  "\nfront line = share of boards where a unit can still be placed in EVERY\ncolumn of the rank nearest the enemy — the currently dominant shape.\n",
+  "\nfront line = share of boards where a unit can still be placed in EVERY column\nof the rank nearest the enemy — the currently dominant shape.",
 );
+
+// ---------------------------------------------------- the oversupply decision
+
+/** Every sub-roster of the offered pieces, as a count per piece type. */
+function subRosters(set: ShapeSet): number[][] {
+  let out: number[][] = [[]];
+  for (const piece of set.pieces) {
+    const next: number[][] = [];
+    for (const prefix of out) {
+      for (let n = 0; n <= piece.count; n++) next.push([...prefix, n]);
+    }
+    out = next;
+  }
+  return out;
+}
+
+const offeredTiles = OVERSUPPLY.pieces.reduce((sum, p) => sum + p.count * p.cells.length, 0);
+console.log(`\n\nOVERSUPPLY  —  ${offeredTiles} tiles of army offered for a 26-tile zone\n`);
+
+const fieldable: number[] = [];
+const distinctArmies = new Set<string>();
+let sampleBoard = "";
+
+for (const seed of seeds.slice(0, Math.min(BOARDS, 30))) {
+  const blocked = blockedFor(seed);
+  const packable: number[][] = [];
+  for (const roster of subRosters(OVERSUPPLY)) {
+    const pieces = OVERSUPPLY.pieces
+      .map((p, i) => ({ ...p, count: roster[i] ?? 0 }))
+      .filter((p) => p.count > 0);
+    if (pieces.length === 0) continue;
+    const tiles = pieces.reduce((sum, p) => sum + p.count * p.cells.length, 0);
+    if (tiles > 26) continue;
+    if (countPackings({ label: "", pieces }, blocked, 1, false) > 0) packable.push(roster);
+  }
+
+  // Only MAXIMAL rosters are real choices: if you could still add a piece, you
+  // would, so a roster with room to spare is not a decision, it is a mistake.
+  const maximal = packable.filter(
+    (roster) =>
+      !packable.some(
+        (other) =>
+          other !== roster &&
+          other.every((n, i) => n >= (roster[i] ?? 0)) &&
+          other.some((n, i) => n > (roster[i] ?? 0)),
+      ),
+  );
+  fieldable.push(maximal.length);
+  for (const roster of maximal) distinctArmies.add(roster.join(","));
+  if (sampleBoard === "") {
+    sampleBoard = maximal
+      .slice(0, 3)
+      .map((roster) =>
+        OVERSUPPLY.pieces
+          .map((p, i) => `${roster[i] ?? 0}x${p.name}`)
+          .filter((t) => !t.startsWith("0"))
+          .join(" + "),
+      )
+      .join("\n    ");
+  }
+}
+
+console.log(`  distinct maximal armies, per board   ${median(fieldable)} (median)`);
+console.log(`  distinct maximal armies, all boards  ${distinctArmies.size}`);
+console.log(`\n  three of them:\n    ${sampleBoard}\n`);

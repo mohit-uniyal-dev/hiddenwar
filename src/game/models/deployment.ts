@@ -8,8 +8,8 @@
 
 import { BOARD, isInsideBoard, zoneOwner } from "../config/gameConfig.ts";
 import { MVP_ARMY, type Roster, UNITS } from "../config/units.ts";
-import { footprint } from "../engine/geometry.ts";
-import type { Coord, Deployment, PlacedUnit, Team, UnitTypeId } from "../types.ts";
+import { tilesOf } from "../engine/geometry.ts";
+import type { Coord, Deployment, Orientation, PlacedUnit, Team, UnitTypeId } from "../types.ts";
 
 export interface ValidationResult {
   readonly ok: boolean;
@@ -21,8 +21,9 @@ export function placementTiles(
   type: UnitTypeId,
   row: number,
   col: number,
+  orientation: Orientation = 0,
 ): { row: number; col: number }[] | null {
-  const tiles = footprint(row, col, UNITS[type].width, UNITS[type].height);
+  const tiles = tilesOf(row, col, UNITS[type], orientation);
   for (const t of tiles) {
     if (!isInsideBoard(t.row, t.col)) return null;
   }
@@ -44,8 +45,9 @@ export function canPlace(
   existing: readonly PlacedUnit[],
   ignoreIndex = -1,
   craters: readonly Coord[] = [],
+  orientation: Orientation = 0,
 ): boolean {
-  const tiles = placementTiles(type, row, col);
+  const tiles = placementTiles(type, row, col, orientation);
   if (tiles === null) return false;
 
   for (const t of tiles) {
@@ -57,12 +59,7 @@ export function canPlace(
   for (const c of craters) occupied.add(c.row * BOARD.cols + c.col);
   existing.forEach((unit, index) => {
     if (index === ignoreIndex) return;
-    for (const t of footprint(
-      unit.row,
-      unit.col,
-      UNITS[unit.type].width,
-      UNITS[unit.type].height,
-    )) {
+    for (const t of tilesOf(unit.row, unit.col, UNITS[unit.type], unit.orientation ?? 0)) {
       occupied.add(t.row * BOARD.cols + t.col);
     }
   });

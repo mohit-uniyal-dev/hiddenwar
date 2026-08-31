@@ -25,7 +25,7 @@ import { UNITS } from "../config/units.ts";
 import { canPlace } from "../models/deployment.ts";
 import type { Coord, Deployment, Team, UnitTypeId } from "../types.ts";
 import type { BattleEvent } from "./events.ts";
-import { footprint } from "./geometry.ts";
+import { tilesOf } from "./geometry.ts";
 import { type BattleResult, simulateBattle } from "./simulate.ts";
 import type { MatchStats } from "./stats.ts";
 
@@ -239,7 +239,7 @@ export function bestSingleEdit(
   const occupied = new Set<number>();
   for (const c of craters) occupied.add(c.row * BOARD.cols + c.col);
   for (const u of mine.units) {
-    for (const t of footprint(u.row, u.col, UNITS[u.type].width, UNITS[u.type].height)) {
+    for (const t of tilesOf(u.row, u.col, UNITS[u.type], u.orientation ?? 0)) {
       occupied.add(t.row * BOARD.cols + t.col);
     }
   }

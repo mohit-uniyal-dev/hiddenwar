@@ -11,7 +11,7 @@ import { UNITS } from "../config/units.ts";
 import type { Rng } from "../rng/mulberry32.ts";
 import type { Coord, Deployment, Shell, Team, Unit, VictoryReason, Winner } from "../types.ts";
 import type { BattleEvent } from "./events.ts";
-import { footprint } from "./geometry.ts";
+import { tilesOf } from "./geometry.ts";
 
 const EMPTY = -1;
 
@@ -51,6 +51,7 @@ export function buildState(
     for (const placed of deployment.units) {
       const spec = UNITS[placed.type];
       const id = units.length;
+      const tiles = tilesOf(placed.row, placed.col, spec, placed.orientation ?? 0);
       const unit: Unit = {
         id,
         type: placed.type,
@@ -58,6 +59,9 @@ export function buildState(
         row: placed.row,
         col: placed.col,
         facing: placed.facing,
+        orientation: placed.orientation ?? 0,
+        tiles,
+        origin: tiles[0] ?? { row: placed.row, col: placed.col },
         spec,
         hp: spec.hp,
         destroyed: false,
@@ -73,7 +77,7 @@ export function buildState(
         destroyedAtTick: null,
       };
       units.push(unit);
-      for (const t of footprint(placed.row, placed.col, spec.width, spec.height)) {
+      for (const t of tiles) {
         occupancy[tileIndex(t.row, t.col)] = id;
       }
     }
@@ -121,7 +125,7 @@ export function isBlockerAt(state: BattleState, row: number, col: number): boole
 
 /** Remove a destroyed unit's footprint from the occupancy grid. */
 export function clearFootprint(state: BattleState, unit: Unit): void {
-  for (const t of footprint(unit.row, unit.col, unit.spec.width, unit.spec.height)) {
+  for (const t of unit.tiles) {
     if (state.occupancy[tileIndex(t.row, t.col)] === unit.id) {
       state.occupancy[tileIndex(t.row, t.col)] = EMPTY;
     }

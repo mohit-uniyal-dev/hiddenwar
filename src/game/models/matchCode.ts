@@ -181,6 +181,18 @@ export function encodeMatchCode(data: MatchCodeData): string {
   const sides = data.b === null ? [data.a] : [data.a, data.b];
   for (const side of sides) {
     if (side.length > MAX_UNITS) throw new Error(`army too large to encode: ${side.length}`);
+    /*
+      Version 1 has no room for footprint rotation, and dropping it silently
+      would be the worst possible failure: the code would decode into a legal
+      army standing in subtly wrong shapes, and the two players would watch
+      different battles with nothing to tell them apart. If shapes ship, this
+      throw is the reminder that MATCH_CODE_VERSION has to move with them.
+    */
+    for (const unit of side) {
+      if ((unit.orientation ?? 0) !== 0) {
+        throw new Error("match code v1 cannot carry a rotated footprint");
+      }
+    }
   }
 
   const header = [
