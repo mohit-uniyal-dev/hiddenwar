@@ -78,6 +78,7 @@ const facingFor = (team: Team): Direction => (team === "A" ? "N" : "S");
 
 export function DeploymentScreen() {
   const mode = useGame((s) => s.mode);
+  const linkRole = useGame((s) => s.linkRole);
   const puzzleId = useGame((s) => s.puzzleId);
   const activeTeam = useGame((s) => s.activeTeam);
   const deployment = useGame((s) => s.deployments[s.activeTeam]);
@@ -296,7 +297,9 @@ export function DeploymentScreen() {
           <span className="topbar-title">
             {mode === "hotseat"
               ? `${activeTeam === "A" ? "Blue" : "Orange"} deploys`
-              : "Your deployment"}
+              : mode === "link" && linkRole === "responder"
+                ? "Answer their challenge"
+                : "Your deployment"}
           </span>
           <span className="topbar-actions">
             <button

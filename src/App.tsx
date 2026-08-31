@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DisplayControls } from "./components/DisplayControls.tsx";
+import { SharePanel } from "./components/SharePanel.tsx";
 import { BOARD } from "./game/config/gameConfig.ts";
 import { DIFFICULTIES, type Difficulty } from "./game/content/formations.ts";
 import { PUZZLES } from "./game/content/puzzles.ts";
 import { BattleScreen } from "./screens/Battle.tsx";
 import { DeploymentScreen } from "./screens/Deployment.tsx";
 import { ResultsScreen } from "./screens/Results.tsx";
-import { useGame } from "./store/gameStore.ts";
+import { shareCode, useGame } from "./store/gameStore.ts";
 
 /**
  * Board dimensions reach the stylesheet from the rules, so the tile size can
@@ -31,8 +32,33 @@ document.documentElement.style.setProperty("--board-rows", String(BOARD.rows));
  */
 const SHOW_PUZZLES = false;
 
+/**
+ * Pull a match out of the address bar, once, on load.
+ *
+ * The code rides in the fragment, so it never reaches a server and the whole
+ * exchange works on static hosting. The fragment is cleared as soon as it is
+ * read: leaving it in place means a reload silently restarts the match and
+ * throws away whatever the player had deployed since.
+ */
+function useIncomingCode(): string | null {
+  const openCode = useGame((s) => s.openCode);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const match = /[#?]c=([A-Za-z0-9_-]+)/.exec(window.location.hash + window.location.search);
+    const code = match?.[1];
+    if (code === undefined) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    const result = openCode(code);
+    if (!result.ok) setError(result.reason);
+  }, [openCode]);
+
+  return error;
+}
+
 export function App() {
   const phase = useGame((s) => s.phase);
+  const incomingError = useIncomingCode();
 
   // Short screens read better centred; the play screens must stay top-aligned
   // on a phone or the board is pushed off the bottom.
@@ -46,7 +72,8 @@ export function App() {
     <div className={`app app-${phase}${centred ? " app-centred" : ""}${sheet ? " app-sheet" : ""}`}>
       {/* Deployment renders its own inside the board top bar. */}
       {phase !== "deploy" && <DisplayControls />}
-      {phase === "home" && <HomeScreen />}
+      {phase === "home" && <HomeScreen incomingError={incomingError} />}
+      {phase === "share" && <ShareScreen />}
       {phase === "deploy" && <DeploymentScreen />}
       {phase === "handoff" && <HandoffScreen />}
       {phase === "battle" && <BattleScreen />}
@@ -55,8 +82,12 @@ export function App() {
   );
 }
 
-function HomeScreen() {
+function HomeScreen({ incomingError }: { incomingError: string | null }) {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
+  const [pasted, setPasted] = useState("");
+  const [openError, setOpenError] = useState<string | null>(null);
+  const startChallenge = useGame((s) => s.startChallenge);
+  const openCode = useGame((s) => s.openCode);
   const selected = DIFFICULTIES.find((d) => d.id === difficulty);
   const startHotseat = useGame((s) => s.startHotseat);
   const startAi = useGame((s) => s.startAi);
@@ -130,6 +161,85 @@ function HomeScreen() {
             </button>
           </div>
           <p className="hint keep-on-mobile">{selected?.blurb}</p>
+        </div>
+
+        <div className="panel">
+          <h2>Play someone else</h2>
+          <p className="menu-note">
+            No account and no server — the whole match travels in a link. Deploy, send it, and they
+            play you back whenever they get to it.
+          </p>
+
+          <div className="row-actions">
+            <button type="button" className="primary" onClick={startChallenge}>
+              Challenge a friend
+            </button>
+          </div>
+
+          <div className="or-rule">
+            <span>or</span>
+          </div>
+
+          <form
+            className="code-entry"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const result = openCode(pasted);
+              setOpenError(result.ok ? null : result.reason);
+              if (result.ok) setPasted("");
+            }}
+          >
+            <label htmlFor="open-code-field">Got a code or link?</label>
+            <input
+              id="open-code-field"
+              value={pasted}
+              spellCheck={false}
+              autoComplete="off"
+              placeholder="Paste it here"
+              onChange={(event) => {
+                setPasted(event.target.value);
+                setOpenError(null);
+              }}
+            />
+            <button type="submit" disabled={pasted.trim().length === 0}>
+              Open
+            </button>
+          </form>
+          {(openError ?? incomingError) !== null && (
+            <p className="hint error-note">{openError ?? incomingError}</p>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/**
+ * Shown to a challenger once they commit: there is no opponent to fight yet,
+ * so the army becomes something to send.
+ */
+function ShareScreen() {
+  const code = useGame(shareCode);
+  const backHome = useGame((s) => s.backHome);
+  if (code === null) return null;
+
+  return (
+    <>
+      <div className="title">
+        <h1>Challenge sent</h1>
+        <p>Your formation is locked and hidden inside the link</p>
+      </div>
+      <div className="menu menu-single">
+        <SharePanel
+          code={code}
+          title="Send this to your opponent"
+          blurb="They deploy against your formation without seeing it, and the battle resolves on their screen."
+          footnote="They can send the finished match back so you can watch it too."
+        />
+        <div className="row-actions">
+          <button type="button" onClick={backHome}>
+            Menu
+          </button>
         </div>
       </div>
     </>

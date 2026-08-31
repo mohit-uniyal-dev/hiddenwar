@@ -13,7 +13,7 @@ import { evaluatePuzzle, puzzleById } from "../game/content/puzzles.ts";
 import { arcPreview } from "../game/engine/preview.ts";
 import { simulateBattle } from "../game/engine/simulate.ts";
 import { canPlace, validateDeployment } from "../game/models/deployment.ts";
-import { activeKit, isComplete, useGame } from "./gameStore.ts";
+import { activeKit, isComplete, shareCode, useGame } from "./gameStore.ts";
 
 const store = () => useGame.getState();
 
@@ -501,5 +501,105 @@ describe("puzzle mode", () => {
       seed: 1,
     });
     expect(evaluatePuzzle(puzzle, bad).solved).toBe(false);
+  });
+});
+
+describe("link play", () => {
+  /*
+    The whole feature in one place: a challenge leaves one device as a string,
+    comes back as a battle, and both players see the SAME battle.
+
+    That last part is the only thing that really matters. If the two ends ever
+    diverged there would be nothing on screen to reveal it — each player would
+    simply believe a different outcome — so it is asserted tick for tick.
+  */
+
+  const fullArmy = () => {
+    store().autoFill();
+    expect(isComplete(store().deployments[store().activeTeam], activeKit(store()))).toBe(true);
+  };
+
+  it("turns a committed formation into a code instead of a battle", () => {
+    store().startChallenge();
+    expect(store().phase).toBe("deploy");
+    expect(store().activeTeam).toBe("A");
+    expect(store().linkRole).toBe("challenger");
+
+    fullArmy();
+    store().ready();
+
+    // No opponent exists yet, so there is nothing to simulate.
+    expect(store().phase).toBe("share");
+    expect(store().result).toBeNull();
+    expect(shareCode(store())).not.toBeNull();
+  });
+
+  it("carries a whole duel from one device to the other and back", () => {
+    store().startChallenge();
+    fullArmy();
+    const blue = store().deployments.A;
+    const seed = store().matchSeed;
+    store().ready();
+    const challenge = shareCode(store());
+    if (challenge === null) throw new Error("no challenge code");
+
+    // --- the other player opens it ---------------------------------------
+    const opened = store().openCode(challenge);
+    expect(opened.ok).toBe(true);
+    expect(store().phase).toBe("deploy");
+    expect(store().activeTeam).toBe("B");
+    expect(store().linkRole).toBe("responder");
+    // The board came across intact, and so did the formation they must beat.
+    expect(store().matchSeed).toBe(seed);
+    expect(store().deployments.A.units).toEqual(blue.units);
+    // Orange starts with nothing but their own nodes: the challenge is hidden
+    // in exactly the way a hot-seat handoff hides it.
+    expect(store().deployments.B.units.every((u) => u.type === "hq")).toBe(true);
+
+    fullArmy();
+    store().ready();
+    expect(store().phase).toBe("battle");
+    const played = store().result;
+    expect(played).not.toBeNull();
+
+    // --- and the finished match goes back ---------------------------------
+    const replay = shareCode(store());
+    if (replay === null || played === null) throw new Error("no replay code");
+    expect(replay.length).toBeGreaterThan(challenge.length);
+
+    expect(store().openCode(replay).ok).toBe(true);
+    expect(store().phase).toBe("battle");
+    const watched = store().result;
+    if (watched === null) throw new Error("replay did not simulate");
+
+    expect(watched.winner).toBe(played.winner);
+    expect(watched.reason).toBe(played.reason);
+    expect(watched.endedAtTick).toBe(played.endedAtTick);
+    expect(watched.events.length).toBe(played.events.length);
+  });
+
+  it("refuses a damaged code rather than opening a different match", () => {
+    store().startChallenge();
+    fullArmy();
+    store().ready();
+    const code = shareCode(store());
+    if (code === null) throw new Error("no code");
+
+    const before = store().matchSeed;
+    const result = store().openCode(`${code.slice(0, -3)}xyz`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason.length).toBeGreaterThan(0);
+    // A rejected code must not have half-applied itself.
+    expect(store().matchSeed).toBe(before);
+  });
+
+  it("accepts a full share link, not just the bare code", () => {
+    store().startChallenge();
+    fullArmy();
+    store().ready();
+    const code = shareCode(store());
+    if (code === null) throw new Error("no code");
+    expect(store().openCode(`https://example.com/hiddenwar/#c=${code}`).ok).toBe(true);
+    expect(store().linkRole).toBe("responder");
   });
 });

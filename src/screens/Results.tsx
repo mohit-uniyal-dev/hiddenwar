@@ -1,11 +1,12 @@
 import { useMemo } from "react";
 import { Board, type RenderUnit } from "../components/Board.tsx";
 import { DebriefPanel } from "../components/DebriefPanel.tsx";
+import { SharePanel } from "../components/SharePanel.tsx";
 import { UnitIcon } from "../components/UnitIcon.tsx";
 import { archetypeById } from "../game/content/formations.ts";
 import { PUZZLES, evaluatePuzzle } from "../game/content/puzzles.ts";
 import { buildInsights } from "../game/engine/insights.ts";
-import { activePuzzle, useGame } from "../store/gameStore.ts";
+import { activePuzzle, shareCode, useGame } from "../store/gameStore.ts";
 
 const REASON_TEXT: Record<string, string> = {
   hqDestroyed: "HQ destroyed",
@@ -26,6 +27,8 @@ export function ResultsScreen() {
   const deployments = useGame((s) => s.deployments);
   const matchSeed = useGame((s) => s.matchSeed);
   const craters = useGame((s) => s.craters);
+  const linkRole = useGame((s) => s.linkRole);
+  const replayCode = useGame(shareCode);
 
   const puzzle = useMemo(() => activePuzzle({ mode, puzzleId }), [mode, puzzleId]);
   const outcome = useMemo(
@@ -183,6 +186,18 @@ export function ResultsScreen() {
               ))}
           </tbody>
         </table>
+
+        {replayCode !== null && (
+          <SharePanel
+            code={replayCode}
+            title={linkRole === "responder" ? "Send the result back" : "Share this match"}
+            blurb={
+              linkRole === "responder"
+                ? "This link carries both armies, so they can watch the battle their formation fought."
+                : "This link carries both armies — anyone who opens it watches exactly this battle."
+            }
+          />
+        )}
 
         <div className="row-actions">
           <button type="button" className="primary" onClick={rematch}>

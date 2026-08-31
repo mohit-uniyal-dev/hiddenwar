@@ -61,6 +61,43 @@ describe("engine boundary", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("src/game/ uses only TypeScript that Node can strip", () => {
+    /*
+      The balance harness runs the engine straight through `node scripts/*.ts`
+      with no build step, and Node's strip-only mode refuses any TypeScript that
+      EMITS code rather than just erasing types. A parameter property in a
+      bit-reader broke every harness script the moment the engine imported it,
+      and nothing else would have caught it: vitest compiles properly, so the
+      whole suite stayed green.
+    */
+    const offenders: string[] = [];
+    for (const file of files) {
+      if (file.includes("__tests__")) continue;
+      const source = stripComments(readFileSync(file, "utf8"));
+      // Parameter properties: an access modifier on a constructor argument.
+      // A parameter property is a modifier at the START of a parameter. It is
+      // NOT the word `readonly` inside a type such as `readonly number[]`,
+      // which is ordinary and fully erasable — hence parsing the parameter
+      // list rather than pattern-matching across the whole constructor.
+      for (const params of source.matchAll(/constructor\s*\(([^)]*)\)/g)) {
+        const declaresField = (params[1] ?? "")
+          .split(",")
+          .some((param) => /^\s*(private|public|protected|readonly)\s+\w/.test(param));
+        if (declaresField) offenders.push(`${file} (parameter property)`);
+      }
+      if (/^\s*(export\s+)?(const\s+)?enum\s+\w/m.test(source)) {
+        offenders.push(`${file} (enum)`);
+      }
+      if (/^\s*(export\s+)?namespace\s+\w/m.test(source)) {
+        offenders.push(`${file} (namespace)`);
+      }
+      if (/^\s*@\w+/m.test(source)) {
+        offenders.push(`${file} (decorator)`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
   it("src/game/ never calls non-portable Math functions", () => {
     // sqrt/sin/cos/pow are NOT specified to agree across JS engines, so a
     // battle on a phone could diverge from the same battle on the server (§H.3).

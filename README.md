@@ -20,7 +20,7 @@ pnpm dev          # http://localhost:5173
 | --- | --- |
 | `pnpm dev` | Vite dev server |
 | `pnpm build` | Typecheck + production bundle into `dist/` |
-| `pnpm test` | Vitest, 134 tests |
+| `pnpm test` | Vitest, 151 tests |
 | `pnpm test:watch` | Vitest in watch mode |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm lint` | Biome |
@@ -158,6 +158,63 @@ Protected by a golden-log snapshot: any unintentional change to battle resolutio
 
 > Everything below the next heading predates the twin-node era and is kept for
 > the reasoning, not the numbers. Start here.
+
+### Link play — a whole match in a URL
+
+The game is playable against someone who is not holding your phone, with no
+server, no account and no backend. The simulation is deterministic, so a seed
+plus two deployments **is** the match; nothing else has to travel.
+
+```
+CHALLENGE   seed + your army      38 characters
+REPLAY      seed + both armies    66 characters
+```
+
+You deploy, get a link, send it over any chat app. They open it and deploy
+against your formation *without seeing it* — the hidden-deployment rule holds
+across a link exactly as it does across a hot seat — and the battle resolves on
+their screen. They send the finished match back and you watch the same battle,
+tick for tick.
+
+The code rides in the URL fragment, which is never sent to a server, so this
+works on static hosting and the deployments stay between the two players. A
+replay carries **both** armies rather than just the reply: twenty extra bytes
+buys a code that still works when the other player has cleared their browser,
+switched phones, or is opening it a week later.
+
+Two properties are load-bearing and both are tested:
+
+- **Order is preserved.** Units simulate in placement order and tie-breaks
+  resolve by unit id, so re-sorting an army would produce a different battle
+  from the same pieces.
+- **A bad code fails loudly.** A truncated or edited code that decoded into a
+  plausible-but-wrong board is the worst outcome available here — both players
+  would watch different battles with nothing on screen to reveal it. Hence a
+  version byte, a checksum, and full re-validation of the decoded army against
+  the board. Over 90% of single-character edits are rejected.
+
+HQ nodes are not encoded; they are drawn from the seed, so sending them would
+mean sending a fact the other end can already derive.
+
+**Worth knowing before a test session:** rematch still works in a link match, so
+a player can edit and re-run against their opponent's committed board until they
+win, then send that. For playtesting that is the edit-and-rerun loop working as
+intended, not an exploit — but it is not a competitive ladder.
+
+### A constraint the harness quietly depends on
+
+The balance scripts run the engine straight through `node scripts/*.ts` with no
+build step, and Node's strip-only TypeScript mode rejects any syntax that
+*emits* code rather than just erasing types. A single parameter property
+(`constructor(private readonly x: T) {}`) in the match-code bit reader broke
+every harness script the moment the engine imported it — and nothing would have
+caught it, because vitest compiles properly and the whole suite stayed green.
+
+[architecture.test.ts](src/game/__tests__/architecture.test.ts) now scans
+`src/game/` for parameter properties, enums, namespaces and decorators. It
+parses the constructor's parameter list rather than pattern-matching the whole
+constructor, because `constructor(bytes: readonly number[])` contains the word
+`readonly` in a *type* and is perfectly erasable.
 
 ### The dominant-formation problem, and what it actually was
 

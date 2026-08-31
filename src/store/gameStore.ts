@@ -23,11 +23,26 @@ import {
 import { type Puzzle, puzzleById } from "../game/content/puzzles.ts";
 import { type BattleResult, simulateBattle } from "../game/engine/simulate.ts";
 import { canPlace, emptyDeployment, expectedCounts } from "../game/models/deployment.ts";
+import {
+  decodeMatchCode,
+  deploymentFromCode,
+  encodeMatchCode,
+  placedUnits,
+} from "../game/models/matchCode.ts";
 import { mulberry32 } from "../game/rng/mulberry32.ts";
 import type { Coord, Deployment, Direction, PlacedUnit, Team, UnitTypeId } from "../game/types.ts";
 
-export type Phase = "home" | "deploy" | "handoff" | "battle" | "results";
-export type Mode = "hotseat" | "ai" | "puzzle";
+export type Phase = "home" | "deploy" | "handoff" | "battle" | "results" | "share";
+export type Mode = "hotseat" | "ai" | "puzzle" | "link";
+
+/**
+ * Which end of a link match you are on.
+ *
+ * "challenger" deploys first and has nothing to watch yet — their Ready
+ * produces a code instead of a battle. "responder" answers a challenge, so
+ * their Ready has both armies and runs the match immediately.
+ */
+export type LinkRole = "challenger" | "responder";
 
 interface GameState {
   phase: Phase;
@@ -36,6 +51,8 @@ interface GameState {
   aiDifficulty: Difficulty | null;
   aiArchetype: ArchetypeId | null;
   puzzleId: string | null;
+  /** Set only in link mode. */
+  linkRole: LinkRole | null;
   /**
    * Drawn once per match and held steady across rematches, so the HQ column
    * varies between matches but edit-and-rerun still works (§D.2).
@@ -61,6 +78,10 @@ interface GameState {
   startHotseat: () => void;
   startAi: (difficulty: Difficulty) => void;
   startPuzzle: (puzzleId: string) => void;
+  /** Begin a challenge for someone else to answer over a link. */
+  startChallenge: () => void;
+  /** Open a code: answer a challenge, or watch a completed match. */
+  openCode: (code: string) => { ok: true } | { ok: false; reason: string };
   rematch: () => void;
   backHome: () => void;
   selectType: (type: UnitTypeId | null) => void;
@@ -112,6 +133,36 @@ function newSeed(): number {
   return ((Date.now() ^ Math.imul(seedCounter, 0x9e3779b1)) & 0x7fffffff) >>> 0;
 }
 
+/**
+ * The code to hand to the other player, or null when there is nothing to send.
+ *
+ * A challenger sends one army; anyone holding a finished match sends both, so
+ * the recipient can watch it without needing anything they were sent earlier.
+ */
+export function shareCode(state: {
+  mode: Mode;
+  linkRole: LinkRole | null;
+  phase: Phase;
+  matchSeed: number;
+  deployments: Record<Team, Deployment>;
+  result: BattleResult | null;
+}): string | null {
+  if (state.mode !== "link") return null;
+  if (state.phase === "share") {
+    return encodeMatchCode({
+      seed: state.matchSeed,
+      a: placedUnits(state.deployments.A),
+      b: null,
+    });
+  }
+  if (state.result === null) return null;
+  return encodeMatchCode({
+    seed: state.matchSeed,
+    a: placedUnits(state.deployments.A),
+    b: placedUnits(state.deployments.B),
+  });
+}
+
 export function remainingFor(deployment: Deployment, kit: Roster = MVP_ARMY) {
   return remaining(deployment, kit);
 }
@@ -150,6 +201,7 @@ const FRESH = {
 export const useGame = create<GameState>((set, get) => ({
   phase: "home",
   mode: "hotseat",
+  linkRole: null,
   aiDifficulty: null,
   aiArchetype: null,
   puzzleId: null,
@@ -214,6 +266,92 @@ export const useGame = create<GameState>((set, get) => ({
       lastFormation: { A: null, B: null },
       ...FRESH,
     });
+  },
+
+  startChallenge: () => {
+    const matchSeed = newSeed();
+    const hqAnchors = hqAnchorsForSeed(matchSeed);
+    set({
+      phase: "deploy",
+      mode: "link",
+      linkRole: "challenger",
+      aiDifficulty: null,
+      aiArchetype: null,
+      puzzleId: null,
+      matchSeed,
+      hqAnchors,
+      craters: terrainForSeed(matchSeed, hqAnchors),
+      activeTeam: "A",
+      deployments: { A: withHq("A", hqAnchors), B: withHq("B", hqAnchors) },
+      lastFormation: { A: null, B: null },
+      ...FRESH,
+    });
+  },
+
+  /**
+   * Open a code, which is two different things depending on what is in it.
+   *
+   * A challenge carries one army, so it drops you into deployment as Orange
+   * against a formation you cannot see — the hidden-deployment rule holds
+   * across the link exactly as it does across a hot seat.
+   *
+   * A replay carries both, so there is nothing left to decide: it simulates on
+   * the spot and plays back the same battle the sender watched, down to the
+   * tick, because the seed travelled with it.
+   */
+  openCode: (code) => {
+    const decoded = decodeMatchCode(code);
+    if (!decoded.ok) return { ok: false, reason: decoded.reason };
+
+    const { seed, a, b } = decoded.match;
+    const hqAnchors = hqAnchorsForSeed(seed);
+    const craters = terrainForSeed(seed, hqAnchors);
+    const playerA = deploymentFromCode("A", seed, a);
+
+    // Terrain is drawn from the same seed, so a code that stood a unit on a
+    // crater is a code from a different build. Catch it here rather than
+    // letting the two players watch different battles.
+    for (const unit of a) {
+      if (craters.some((c) => c.row === unit.row && c.col === unit.col)) {
+        return { ok: false, reason: "That code does not match this version of the battlefield." };
+      }
+    }
+
+    const base = {
+      mode: "link" as const,
+      aiDifficulty: null,
+      aiArchetype: null,
+      puzzleId: null,
+      matchSeed: seed,
+      hqAnchors,
+      craters,
+      ...FRESH,
+    };
+
+    if (b === null) {
+      set({
+        ...base,
+        phase: "deploy",
+        linkRole: "responder",
+        activeTeam: "B",
+        deployments: { A: playerA, B: withHq("B", hqAnchors) },
+        lastFormation: { A: null, B: null },
+      });
+      return { ok: true };
+    }
+
+    const playerB = deploymentFromCode("B", seed, b);
+    const result = simulateBattle({ playerA, playerB, craters, seed });
+    set({
+      ...base,
+      phase: "battle",
+      linkRole: "challenger",
+      activeTeam: "A",
+      deployments: { A: playerA, B: playerB },
+      lastFormation: { A: playerA, B: playerB },
+      result,
+    });
+    return { ok: true };
   },
 
   startPuzzle: (puzzleId) => {
@@ -375,7 +513,12 @@ export const useGame = create<GameState>((set, get) => ({
    * simulates (§H.4).
    */
   ready: () => {
-    const { activeTeam, deployments, mode } = get();
+    const { activeTeam, deployments, mode, linkRole } = get();
+    // A challenger has nobody to fight yet: their army becomes a code instead.
+    if (mode === "link" && linkRole === "challenger") {
+      set({ phase: "share", selectedType: null, selectedIndex: null });
+      return;
+    }
     if (mode === "hotseat" && activeTeam === "A") {
       set({ phase: "handoff", activeTeam: "B", selectedType: null, selectedIndex: null });
       return;

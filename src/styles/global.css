@@ -2052,27 +2052,27 @@ ul.objectives li.fail {
 /*
  * Craters — permanent terrain, drawn with the board.
  *
- * Read as a hole in the ground rather than a piece: darker, recessed, no team
- * colour, and never interactive. Nothing can stand here and no shot passes
- * through, but the mortar arcs over as it does over any cover.
+ * The artwork is a transparent square sprite like the one-cell units, but it
+ * stays inside the tile rather than getting the unit lift/drop-shadow treatment:
+ * this is a hole in the ground, not a selectable piece. Nothing can stand here
+ * and no shot passes through, but the mortar arcs over as it does over any cover.
  */
 .tile.crater {
-  background: radial-gradient(
-      circle at 50% 45%,
-      rgba(38, 31, 20, 0.55),
-      rgba(92, 78, 52, 0.28) 62%,
-      transparent 78%
-    ), var(--paper-dark);
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.35);
+  background: var(--paper-dark);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.22);
   cursor: not-allowed;
 }
 
-.tile.crater::before {
-  content: "";
+.crater-art {
   position: absolute;
-  inset: 22%;
-  border-radius: 50%;
-  border: 1px solid rgba(46, 38, 24, 0.4);
+  inset: 3%;
+  z-index: 0;
+  display: block;
+  width: 94%;
+  height: 94%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
 }
 
 /* ---------------------------------------------------------------- debrief
@@ -2191,4 +2191,59 @@ ul.objectives li.fail {
 .one-move.winning {
   background: rgba(74, 124, 47, 0.18);
   border-left-color: var(--ok);
+}
+
+/* ------------------------------------------------------- link play / sharing
+   A match travels as a URL fragment, so these are the only two surfaces the
+   feature needs: somewhere to hand a code out, and somewhere to take one in. */
+
+.share-panel .share-code {
+  display: block;
+  margin: 0.7rem 0 0.4rem;
+}
+
+.share-panel .share-code span {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 0.25rem;
+}
+
+.share-panel input,
+.code-entry input {
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  font-family: ui-monospace, "SFMono-Regular", "Consolas", monospace;
+  /* The code is long and never needs reading aloud, so it can go small. */
+  font-size: 0.78rem;
+  color: var(--ink);
+  background: rgba(255, 253, 245, 0.75);
+  border: 1px solid var(--paper-line);
+  border-radius: var(--radius);
+  /* 16px would stop iOS zooming on focus, but that breaks the layout at this
+     width; the field is read-only on the share side, and the entry side is a
+     paste target rather than something anyone types into. */
+}
+
+.code-entry {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.code-entry label {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.code-entry button {
+  justify-self: start;
+}
+
+.error-note {
+  color: var(--warn);
+  font-weight: 600;
 }

@@ -1,3 +1,4 @@
+import craterArt from "../assets/terrain/crater.webp";
 import { BOARD, zoneOwner } from "../game/config/gameConfig.ts";
 import { UNITS } from "../game/config/units.ts";
 import type { Coord, Direction, PlacedUnit, Team, UnitTypeId } from "../game/types.ts";
@@ -74,7 +75,8 @@ export function Board({
       const k = `${row}:${col}`;
       const unit = byTile.get(k);
       const isHovered = hovered?.row === row && hovered?.col === col;
-      const canInteract = interactiveZone !== null && owner === interactiveZone;
+      const isCrater = craterSet.has(k);
+      const canInteract = interactiveZone !== null && owner === interactiveZone && !isCrater;
 
       const classes = [
         "tile",
@@ -82,7 +84,7 @@ export function Board({
         arcSet.has(k) ? "arc" : "",
         blockedSet.has(k) ? "arc-blocked" : "",
         !arcSet.has(k) && deadSet.has(k) ? "arc-dead" : "",
-        craterSet.has(k) ? "crater" : "",
+        isCrater ? "crater" : "",
         canInteract ? (hoverLegal ? "placeable" : "illegal") : "",
         isHovered ? "hovered" : "",
       ]
@@ -101,9 +103,11 @@ export function Board({
           data-col={col}
           disabled={!canInteract}
           aria-label={
-            unit === undefined
-              ? `Row ${row + 1}, column ${col + 1}`
-              : `${UNITS[unit.type].name}, row ${row + 1}, column ${col + 1}`
+            isCrater
+              ? `Blocked crater, row ${row + 1}, column ${col + 1}`
+              : unit === undefined
+                ? `Row ${row + 1}, column ${col + 1}`
+                : `${UNITS[unit.type].name}, row ${row + 1}, column ${col + 1}`
           }
           onMouseEnter={() => onTileEnter?.(row, col)}
           onFocus={() => onTileEnter?.(row, col)}
@@ -111,6 +115,7 @@ export function Board({
           onClick={() => onTileClick?.(row, col)}
           onPointerDown={(e) => onTilePointerDown?.(row, col, e)}
         >
+          {isCrater && <img className="crater-art" src={craterArt} alt="" draggable={false} />}
           {unit && (
             <UnitToken
               type={unit.type}
