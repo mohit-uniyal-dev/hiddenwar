@@ -6,12 +6,7 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import {
-  BOARD,
-  NODE_MIN_SEPARATION,
-  hqAnchorsForSeed,
-  zoneOwner,
-} from "../game/config/gameConfig.ts";
+import { BOARD, NODE_SEPARATIONS, hqAnchorsForSeed, zoneOwner } from "../game/config/gameConfig.ts";
 import { DIFFICULTY_POOLS } from "../game/content/formations.ts";
 import { evaluatePuzzle, puzzleById } from "../game/content/puzzles.ts";
 import { arcPreview } from "../game/engine/preview.ts";
@@ -57,16 +52,28 @@ describe("hotseat flow", () => {
     for (const a of hqAnchors.A) expect(a.row).toBe(BOARD.teamARows[1] - 1);
   });
 
-  it("keeps the two nodes far enough apart to be separate fronts", () => {
+  it("gives both sides the SAME node gap, drawn from the table", () => {
+    const seen = new Set<number>();
     for (let seed = 0; seed < 400; seed++) {
       const drawn = hqAnchorsForSeed(seed);
-      for (const side of [drawn.A, drawn.B]) {
-        const cols = side.map((n) => n.col);
-        // Adjacent nodes collapse back into a single front, which is the whole
-        // thing twin objectives exist to prevent.
-        expect(Math.abs((cols[0] ?? 0) - (cols[1] ?? 0))).toBeGreaterThanOrEqual(
-          NODE_MIN_SEPARATION,
-        );
+      const gaps = [drawn.A, drawn.B].map((side) =>
+        Math.abs((side[0]?.col ?? 0) - (side[1]?.col ?? 0)),
+      );
+      // Same problem for both players: the DISTANCE is mirrored, not the
+      // columns. Mirroring the columns made one stack both attack and defend.
+      expect(gaps[0]).toBe(gaps[1]);
+      expect(NODE_SEPARATIONS).toContain(gaps[0]);
+      seen.add(gaps[0] ?? 0);
+    }
+    // A gap that never varies is the constant that made one shape always right.
+    expect(seen.size).toBe(NODE_SEPARATIONS.length);
+  });
+
+  it("never lets the two nodes touch", () => {
+    for (let seed = 0; seed < 400; seed++) {
+      for (const side of Object.values(hqAnchorsForSeed(seed))) {
+        const cols = side.map((n: { col: number }) => n.col);
+        expect(Math.abs((cols[0] ?? 0) - (cols[1] ?? 0))).toBeGreaterThanOrEqual(2);
       }
     }
   });

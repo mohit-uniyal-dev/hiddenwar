@@ -16,81 +16,21 @@
  * verdict — and read §51's playtest questions for the things it cannot measure.
  */
 
-import { BOARD, hqAnchorsForSeed, terrainForSeed } from "../src/game/config/gameConfig.ts";
+import { BOARD, nodeSeparationForSeed, terrainForSeed } from "../src/game/config/gameConfig.ts";
 import { UNITS } from "../src/game/config/units.ts";
 import { ARCHETYPES, generateFormation } from "../src/game/content/formations.ts";
 import { simulateBattle } from "../src/game/engine/simulate.ts";
 import { mulberry32 } from "../src/game/rng/mulberry32.ts";
-import type { UnitTypeId } from "../src/game/types.ts";
+import type { Deployment, UnitTypeId } from "../src/game/types.ts";
 
 import { applyArmyOverride } from "./armyOverride.ts";
+import { numberFlag, readExperiment } from "./experiment.ts";
 
 const args = process.argv.slice(2);
-
-/**
- * EXPERIMENT: AT gun damage per unit in lane. --atgun 20
- *
- * The density-scaling property is what makes this unit interesting, so the
- * ceiling is set by a soldier: 10 damage every 20 ticks = 0.5/tick. The AT gun
- * fires every 48 ticks, so at 24 damage it merely MATCHES a soldier against a
- * single target and beats it against two. Anything at or above 24 makes it a
- * strictly better soldier and the density trade-off disappears.
- */
-
 const ARMY = applyArmyOverride(args);
-const flag = (name: string, fallback: number): number => {
-  const i = args.indexOf(`--${name}`);
-  if (i === -1) return fallback;
-  const value = Number(args[i + 1]);
-  return Number.isFinite(value) ? value : fallback;
-};
-
-const ATGUN_DMG = flag("atgun", 0);
-if (ATGUN_DMG > 0) {
-  (UNITS.atgun as { damage: number }).damage = ATGUN_DMG;
-}
-
-const MATCHES = flag("matches", 5000);
-/**
- * EXPERIMENT: draw the two HQ columns independently instead of mirroring them.
- * With mirrored columns your attack lane and your defence lane are the same, so
- * stacking one column does both jobs at once. Splitting them should force a
- * choice. --splithq 1
- */
-const SPLIT_HQ = flag("splithq", 0) === 1;
-/**
- * EXPERIMENT: override HQ hit points. A rush only works if it can finish the
- * objective before the rest of the board becomes relevant, so HQ HP is the dial
- * that decides how much of the army has to matter. --hqhp 350
- */
-/**
- * EXPERIMENT: the roadmap's stated counter to stacking is splash damage (§38).
- * With one mortar doing 30, it may simply be too weak to impose a cost on
- * concentration. --splash 100 raises the neighbour fraction. --mortardmg N
- * raises the shell itself.
- */
-const SPLASH = flag("splash", 0);
-if (SPLASH > 0) {
-  (UNITS.mortar as { splashPercent: number }).splashPercent = SPLASH;
-}
-/**
- * EXPERIMENT: the mortar currently reaches an enemy HQ from the safety of its
- * own back rank. Shortening its reach should force it forward into infantry
- * range to threaten the objective. --mortarrange 7
- */
-const MORTAR_RANGE = flag("mortarrange", 0);
-if (MORTAR_RANGE > 0) {
-  (UNITS.mortar as { maxRange: number }).maxRange = MORTAR_RANGE;
-}
-const MORTAR_DMG = flag("mortardmg", 0);
-if (MORTAR_DMG > 0) {
-  (UNITS.mortar as { damage: number }).damage = MORTAR_DMG;
-}
-const HQ_HP = flag("hqhp", 0);
-if (HQ_HP > 0) {
-  (UNITS.hq as { hp: number }).hp = HQ_HP;
-}
-const BASE_SEED = flag("seed", 1);
+const EXPERIMENT = readExperiment(args);
+const MATCHES = numberFlag(args, "matches", 5000);
+const BASE_SEED = numberFlag(args, "seed", 1);
 
 const TARGET_MIN = 15;
 const TARGET_MAX = 30;
@@ -114,6 +54,31 @@ const stat = (type: UnitTypeId): UnitStat => {
   return s;
 };
 
+/**
+ * Mean shoulder-to-shoulder pairs per formation.
+ *
+ * This is the premise check for a lateral-splash weapon, and it is the number
+ * the AT gun never had: that unit was specified against a column eight deep,
+ * the board caps a column at four, and real formations average 2.7 — so it was
+ * aimed at a shape that does not exist. Before anything is built to punish a
+ * solid line, the line has to be measurably solid.
+ */
+const adjacencyByArchetype = new Map<string, { pairs: number; armies: number }>();
+
+function adjacency(id: string, deployment: Deployment): void {
+  const combat = deployment.units.filter((u) => (UNITS[u.type].damage ?? 0) > 0);
+  let pairs = 0;
+  for (const a of combat) {
+    for (const b of combat) {
+      if (a.row === b.row && b.col === a.col + 1) pairs++;
+    }
+  }
+  const row = adjacencyByArchetype.get(id) ?? { pairs: 0, armies: 0 };
+  row.pairs += pairs;
+  row.armies++;
+  adjacencyByArchetype.set(id, row);
+}
+
 const durations: number[] = [];
 const reasons = new Map<string, number>();
 const archetypeWins = new Map<string, { played: number; won: number; drawn: number }>();
@@ -130,22 +95,21 @@ const started = Date.now();
 for (let i = 0; i < MATCHES; i++) {
   const seed = BASE_SEED + i;
   const rng = mulberry32(seed ^ 0x9e3779b9);
-  const base = hqAnchorsForSeed(seed);
-  const anchors = SPLIT_HQ
-    ? {
-        A: base.A,
-        B: { row: base.B.row, col: mulberry32(seed * 2654435761).nextInt(BOARD.cols - 1) },
-      }
-    : base;
+  const anchors = EXPERIMENT.anchors(seed);
+  const gap = Math.abs((anchors.A[0]?.col ?? 0) - (anchors.A[1]?.col ?? 0));
 
   const archA = ARCHETYPES[rng.nextInt(ARCHETYPES.length)];
   const archB = ARCHETYPES[rng.nextInt(ARCHETYPES.length)];
   if (archA === undefined || archB === undefined) continue;
 
   const craters = terrainForSeed(seed, anchors);
-  const playerA = generateFormation("A", anchors, archA, rng, craters);
-  const playerB = generateFormation("B", anchors, archB, rng, craters);
+  const sight = EXPERIMENT.sightAware;
+  const playerA = generateFormation("A", anchors, archA, rng, craters, sight);
+  const playerB = generateFormation("B", anchors, archB, rng, craters, sight);
   const result = simulateBattle({ playerA, playerB, seed, craters });
+
+  adjacency(archA.id, playerA);
+  adjacency(archB.id, playerB);
 
   durations.push(result.durationSeconds);
   reasons.set(result.reason, (reasons.get(result.reason) ?? 0) + 1);
@@ -157,14 +121,16 @@ for (let i = 0; i < MATCHES; i++) {
     [archA, "A"],
     [archB, "B"],
   ] as const) {
-    let row = archetypeWins.get(arch.id);
-    if (row === undefined) {
-      row = { played: 0, won: 0, drawn: 0 };
-      archetypeWins.set(arch.id, row);
+    for (const key of [arch.id, `${arch.id}@${gap}`]) {
+      let row = archetypeWins.get(key);
+      if (row === undefined) {
+        row = { played: 0, won: 0, drawn: 0 };
+        archetypeWins.set(key, row);
+      }
+      row.played++;
+      if (result.winner === team) row.won++;
+      else if (result.winner === "draw") row.drawn++;
     }
-    row.played++;
-    if (result.winner === team) row.won++;
-    else if (result.winner === "draw") row.drawn++;
   }
 
   // Attribute every point of HQ damage to the unit type that dealt it.
@@ -205,6 +171,7 @@ const pc = (n: number, total: number): string =>
   `${((n / (total || 1)) * 100).toFixed(1).padStart(5)}%`;
 
 console.log(`\nBALANCE SWEEP  —  ${MATCHES} matches, base seed ${BASE_SEED}`);
+console.log(`config: ${EXPERIMENT.label}   army: ${ARMY}`);
 console.log(`ran in ${((Date.now() - started) / 1000).toFixed(1)}s\n`);
 
 console.log("DURATION                                    target 15-30s");
@@ -249,13 +216,43 @@ for (const [type, dmg] of [...hqDamageBySource].sort((a, b) => b[1] - a[1])) {
 }
 
 console.log("\nARCHETYPE WIN RATE       (a dominant shape here is a solved-formation warning)");
-for (const [id, row] of [...archetypeWins].sort(
-  (a, b) => b[1].won / b[1].played - a[1].won / a[1].played,
-)) {
+const aggregate = [...archetypeWins].filter(([id]) => !id.includes("@"));
+for (const [id, row] of aggregate.sort((a, b) => b[1].won / b[1].played - a[1].won / a[1].played)) {
   const label = ARCHETYPES.find((a) => a.id === id)?.label ?? id;
   console.log(
     `  ${label.padEnd(18)} ${pc(row.won, row.played)} won   ${pc(row.drawn, row.played)} drawn   (${row.played} armies)`,
   );
+}
+
+/*
+  The same table split by how far apart the nodes were drawn.
+
+  This is the column that matters most now. An aggregate win rate cannot tell a
+  shape that is mildly good everywhere from one that is unbeatable on half the
+  boards and poor on the rest — and only the second of those is a real game. If
+  a shape holds the same rate across every gap, the board draw is not reaching
+  the decision and the variance is buying nothing.
+*/
+const gaps = [...new Set([...archetypeWins.keys()].flatMap((k) => k.split("@")[1] ?? []))].sort();
+if (gaps.length > 1) {
+  console.log(`\nBY NODE GAP             ${gaps.map((g) => `gap ${g}`.padStart(9)).join("")}`);
+  for (const [id] of aggregate) {
+    const label = ARCHETYPES.find((a) => a.id === id)?.label ?? id;
+    const cells = gaps.map((g) => {
+      const row = archetypeWins.get(`${id}@${g}`);
+      return row === undefined ? "—".padStart(9) : pc(row.won, row.played).padStart(9);
+    });
+    console.log(`  ${label.padEnd(20)}${cells.join("")}`);
+  }
+}
+
+console.log("\nSHOULDER-TO-SHOULDER    mean adjacent combat pairs per army");
+console.log("                        (premise check before any lateral-splash weapon)");
+for (const [id, row] of [...adjacencyByArchetype].sort(
+  (a, b) => b[1].pairs / b[1].armies - a[1].pairs / a[1].armies,
+)) {
+  const label = ARCHETYPES.find((a) => a.id === id)?.label ?? id;
+  console.log(`  ${label.padEnd(18)} ${(row.pairs / row.armies).toFixed(2)}`);
 }
 
 console.log("\nWATCH-PHASE HEALTH (§D.2)");

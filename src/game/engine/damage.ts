@@ -20,8 +20,11 @@ export function computeDamage(
   base: number,
   damageType: DamageType,
   targetClass: UnitClass,
+  structureMultiplier = 1,
 ): number {
-  const multiplier = DAMAGE_MULTIPLIERS[damageType][targetClass];
+  const multiplier =
+    DAMAGE_MULTIPLIERS[damageType][targetClass] *
+    (targetClass === "structure" ? structureMultiplier : 1);
   const rounded = Math.floor(base * multiplier + 0.5);
   return rounded < 1 ? 1 : rounded;
 }
@@ -32,7 +35,8 @@ export function computeSplashDamage(
   splashPercent: number,
   damageType: DamageType,
   targetClass: UnitClass,
+  structureMultiplier = 1,
 ): number {
   const reduced = Math.floor((base * splashPercent) / 100 + 0.5);
-  return computeDamage(reduced, damageType, targetClass);
+  return computeDamage(reduced, damageType, targetClass, structureMultiplier);
 }

@@ -2,8 +2,8 @@
 
 exports[`determinism > matches the recorded golden log 1`] = `
 {
-  "endedAtTick": 220,
-  "hash": "270f774f017f3ab3:17802",
+  "endedAtTick": 460,
+  "hash": "1f6c8bbb761ea337:21432",
   "reason": "armyDestroyed",
   "winner": "B",
 }

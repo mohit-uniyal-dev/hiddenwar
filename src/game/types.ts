@@ -58,6 +58,16 @@ export interface UnitSpec {
   readonly splashPercent?: number;
   /** Mortar only: fires over cover, and in all directions. */
   readonly ignoresLineOfSight?: boolean;
+  /**
+   * Extra multiplier applied ONLY against structures, on top of the damage-type
+   * table. Defaults to 1.
+   *
+   * This exists for indirect fire. A weapon that ignores line of sight can hit
+   * an objective from anywhere, so with it in the army no formation ever has to
+   * break through to score — and a game where breakthroughs are optional is
+   * decided by attrition, which rewards spreading out and nothing else.
+   */
+  readonly structureMultiplier?: number;
   /** Sandbags and HQs block line of sight — for both teams (§B.4). */
   readonly blocksLineOfSight?: boolean;
 }
@@ -110,6 +120,8 @@ export interface Shell {
   readonly damage: number;
   readonly damageType: DamageType;
   readonly splashPercent: number;
+  /** Carried with the shell, because the tube that fired it may already be dead. */
+  readonly structureMultiplier: number;
 }
 
 export type Winner = Team | "draw";

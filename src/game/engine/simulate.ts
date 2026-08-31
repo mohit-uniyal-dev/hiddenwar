@@ -124,6 +124,7 @@ function runTick(state: BattleState): void {
         damage: unit.spec.damage ?? 0,
         damageType: unit.spec.damageType ?? "explosive",
         splashPercent: unit.spec.splashPercent ?? 0,
+        structureMultiplier: unit.spec.structureMultiplier ?? 1,
       };
       state.shells.push(shell);
       state.events.push({
@@ -153,7 +154,12 @@ function runTick(state: BattleState): void {
       pending.push({
         sourceId: unit.id,
         targetId: target.id,
-        amount: computeDamage(base, damageType, target.spec.unitClass),
+        amount: computeDamage(
+          base,
+          damageType,
+          target.spec.unitClass,
+          unit.spec.structureMultiplier ?? 1,
+        ),
         damageType,
       });
     }
@@ -254,12 +260,18 @@ function collectShellDamage(state: BattleState, shell: Shell, pending: PendingDa
   };
 
   consider(shell.row, shell.col, (u) =>
-    computeDamage(shell.damage, shell.damageType, u.spec.unitClass),
+    computeDamage(shell.damage, shell.damageType, u.spec.unitClass, shell.structureMultiplier),
   );
   for (const cell of splashArea({ row: shell.row, col: shell.col })) {
     if (cell.row === shell.row && cell.col === shell.col) continue;
     consider(cell.row, cell.col, (u) =>
-      computeSplashDamage(shell.damage, shell.splashPercent, shell.damageType, u.spec.unitClass),
+      computeSplashDamage(
+        shell.damage,
+        shell.splashPercent,
+        shell.damageType,
+        u.spec.unitClass,
+        shell.structureMultiplier,
+      ),
     );
   }
 

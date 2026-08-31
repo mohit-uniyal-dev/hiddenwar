@@ -13,8 +13,10 @@
  * is fun.
  */
 
-import { BOARD, type HqAnchors } from "../config/gameConfig.ts";
-import { PLACEABLE_ARMY } from "../config/units.ts";
+import { BOARD, type HqAnchors, zoneOwner } from "../config/gameConfig.ts";
+import { PLACEABLE_ARMY, UNITS } from "../config/units.ts";
+import { conePattern, footprint, indirectPattern, linePattern } from "../engine/geometry.ts";
+import { hasLineOfSight } from "../engine/lineOfSight.ts";
 import { canPlace } from "../models/deployment.ts";
 import type { Rng } from "../rng/mulberry32.ts";
 import type { Coord, Deployment, Direction, PlacedUnit, Team, UnitTypeId } from "../types.ts";
@@ -179,11 +181,59 @@ const ALL_COLS = Array.from({ length: BOARD.cols }, (_, i) => i);
 const ALL_DEPTHS = [0, 1, 2, 3];
 
 /**
+ * Can a unit standing here actually shoot into enemy territory?
+ *
+ * This is the check a player makes for free by looking at the arc-preview
+ * overlay, and the generator used to skip it entirely — so it parked soldiers
+ * behind craters and in rear rows whose range stops short of the enemy zone.
+ * That inflated the idle-unit metric to 22.8% and made it unreadable: the
+ * number was measuring the generator, not the design.
+ *
+ * Only public information is used, which is what keeps this honest — terrain,
+ * your own units, and the enemy nodes, whose positions are published. The
+ * opponent's formation is hidden and stays hidden.
+ */
+function hasFiringLine(
+  team: Team,
+  type: UnitTypeId,
+  row: number,
+  col: number,
+  facing: Direction,
+  blocks: ReadonlySet<number>,
+): boolean {
+  const spec = UNITS[type];
+  if ((spec.damage ?? 0) === 0) return true; // sandbags and nodes never fire
+  const min = spec.minRange ?? 1;
+  const max = spec.maxRange ?? 1;
+  const enemy: Team = team === "A" ? "B" : "A";
+  const origin: Coord = { row, col };
+
+  // Indirect fire ignores cover, so reach is the whole question.
+  if (spec.ignoresLineOfSight === true) {
+    return indirectPattern(origin, min, max).some((t) => zoneOwner(t.row) === enemy);
+  }
+
+  const tiles =
+    spec.pattern === "cone"
+      ? conePattern(origin, facing, min, max)
+      : linePattern(origin, facing, min, max);
+  return tiles.some(
+    (t) =>
+      zoneOwner(t.row) === enemy &&
+      hasLineOfSight(origin, t, (r, c) => blocks.has(r * BOARD.cols + c)),
+  );
+}
+
+/**
  * Build one legal army for a team, in the shape of the given archetype.
  *
- * The HQ goes down first at the drawn anchor, then each unit takes the first
- * legal tile from its preferred depths — falling back to any depth rather than
- * failing, so a generator can never emit an incomplete army.
+ * Nodes go down first at the drawn anchors, then sandbags, then the guns. That
+ * order matters: sandbags block line of sight, so a weapon cannot be checked
+ * for a clear shot until the walls it must shoot around are already standing.
+ *
+ * Each unit takes the first tile that is legal AND has a firing line, working
+ * down its archetype's preferred depths; it falls back to merely legal rather
+ * than failing, so a generator can never emit an incomplete army.
  */
 export function generateFormation(
   team: Team,
@@ -191,6 +241,8 @@ export function generateFormation(
   archetype: Archetype,
   rng: Rng,
   craters: readonly Coord[] = [],
+  /** Off only for the harness, to measure how much of "idle units" was the tool. */
+  sightAware = true,
 ): Deployment {
   const nodes = anchors[team];
   const units: PlacedUnit[] = nodes.map((a) => ({
@@ -201,14 +253,33 @@ export function generateFormation(
   }));
   const facing: Direction = team === "A" ? "N" : "S";
 
-  const tryPlace = (type: UnitTypeId, depths: number[], cols: number[]): boolean => {
+  // Everything that stops a bullet: terrain, plus every node on the board —
+  // the enemy's are published, so accounting for them is not cheating.
+  const blocks = new Set<number>();
+  for (const c of craters) blocks.add(c.row * BOARD.cols + c.col);
+  for (const side of [anchors.A, anchors.B]) {
+    for (const n of side) {
+      for (const t of footprint(n.row, n.col, UNITS.hq.width, UNITS.hq.height)) {
+        blocks.add(t.row * BOARD.cols + t.col);
+      }
+    }
+  }
+
+  const tryPlace = (
+    type: UnitTypeId,
+    depths: number[],
+    cols: number[],
+    requireSight: boolean,
+  ): boolean => {
+    const unitFacing: Direction = type === "sandbag" ? "N" : facing;
     for (const depth of depths) {
       const row = rowAtDepth(team, depth);
       for (const col of cols) {
-        if (canPlace(team, type, row, col, units, -1, craters)) {
-          units.push({ type, row, col, facing: type === "sandbag" ? "N" : facing });
-          return true;
-        }
+        if (!canPlace(team, type, row, col, units, -1, craters)) continue;
+        if (requireSight && !hasFiringLine(team, type, row, col, unitFacing, blocks)) continue;
+        units.push({ type, row, col, facing: unitFacing });
+        if (UNITS[type].blocksLineOfSight === true) blocks.add(row * BOARD.cols + col);
+        return true;
       }
     }
     return false;
@@ -220,7 +291,20 @@ export function generateFormation(
     rng,
   );
 
-  for (const entry of PLACEABLE_ARMY) {
+  /*
+    The control archetype opts out of the sight check on purpose. Its whole job
+    is to be incoherent — it is the baseline every other shape is measured
+    against, and a "random" formation that quietly places well is not a baseline.
+  */
+  const smart = sightAware && archetype.id !== "random";
+
+  // Walls first, then guns: see the note on ordering above.
+  const ordered = [
+    ...PLACEABLE_ARMY.filter((e) => e.type === "sandbag"),
+    ...PLACEABLE_ARMY.filter((e) => e.type !== "sandbag"),
+  ];
+
+  for (const entry of ordered) {
     for (let n = 0; n < entry.count; n++) {
       const preferred = archetype.depths[entry.type as Exclude<UnitTypeId, "hq">];
       const spread = shuffled(ALL_COLS, rng);
@@ -247,10 +331,11 @@ export function generateFormation(
             ]
           : preferred;
 
-      // Preferred depths first, then anywhere legal — never emit a short army.
-      if (!tryPlace(entry.type, depths, cols)) {
-        tryPlace(entry.type, shuffled(ALL_DEPTHS, rng), shuffled(ALL_COLS, rng));
-      }
+      // Preferred depths with a clear shot, then preferred depths anywhere,
+      // then anywhere legal at all — never emit a short army.
+      if (smart && tryPlace(entry.type, depths, cols, true)) continue;
+      if (tryPlace(entry.type, depths, cols, false)) continue;
+      tryPlace(entry.type, shuffled(ALL_DEPTHS, rng), shuffled(ALL_COLS, rng), false);
     }
   }
 

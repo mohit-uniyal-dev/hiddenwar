@@ -61,8 +61,36 @@ export interface HqAnchors {
   readonly B: readonly Anchor[];
 }
 
-/** Columns must sit this far apart, or the two nodes collapse into one front. */
-export const NODE_MIN_SEPARATION = 3;
+/**
+ * How far apart the two nodes stand, drawn per match and applied to BOTH sides.
+ *
+ * This was a fixed `>= 3` and that constant was the problem. With the gap always
+ * wide, a force that concentrates enough to kill one node is *guaranteed* to be
+ * stranded from the other — and a punishment that is certain is not a risk, it
+ * is a rule. Concentration stopped being a bet and simply became wrong, which
+ * left "cover the whole width" correct on every board. Measured: the old
+ * dominant (stacking) fell from 70.7% to 51.8%, and a broad front rank took its
+ * place at 71.0%. Two eras, two shapes, the same ~70% — the endpoint of a
+ * monotone axis, whichever end happens to be uphill.
+ *
+ * Drawing the gap per match bends the axis instead of flipping it. At 2, a mass
+ * of two or three columns genuinely threatens both nodes and stranding is no
+ * longer certain; at 5, the broad front is still right. There is no shape that
+ * is correct before you have seen the board.
+ *
+ * The DISTANCE is mirrored, never the columns. Mirrored columns made the lane
+ * you attack and the lane you defend the same lane — one stack did both jobs,
+ * measured at 80% with no counter. A shared distance carries none of that: it
+ * only guarantees both players face the same problem.
+ */
+export const NODE_SEPARATIONS = [2, 3, 4, 5] as const;
+
+/** The gap drawn for a match. Public because the harness buckets results by it. */
+export function nodeSeparationForSeed(seed: number): number {
+  // Its own stream: changing the separation table must not shift the columns.
+  const rng = mulberry32((seed ^ 0x2545f491) >>> 0);
+  return NODE_SEPARATIONS[rng.nextInt(NODE_SEPARATIONS.length)] ?? 3;
+}
 
 /**
  * Both HQs stand on the rear rank of their own zone, each in a column drawn
@@ -93,8 +121,8 @@ export function hqAnchorsForSeed(seed: number): HqAnchors {
   const rowB = BOARD.teamBRows[0];
 
   /*
-    Two nodes per side, columns drawn independently, forced at least
-    NODE_MIN_SEPARATION apart.
+    Two nodes per side, EXACTLY `gap` columns apart on both sides, with the pair
+    positioned independently.
 
     Two objectives turn deployment into a Colonel Blotto problem — hidden
     allocation of force across multiple fronts — which has no pure-strategy
@@ -105,18 +133,15 @@ export function hqAnchorsForSeed(seed: number): HqAnchors {
     node is then permanently stranded and can never touch the other. The
     no-movement rule, which was the cause of the solved formation, becomes the
     thing that forces force division.
+
+    The gap is what decides how hard that stranding bites, so it is drawn per
+    match rather than fixed — see NODE_SEPARATIONS.
   */
+  const gap = nodeSeparationForSeed(seed);
   const pick = (): [number, number] => {
-    const span = BOARD.cols;
-    const first = rng.nextInt(span);
-    // Choose the second from the columns far enough away, so separation is
-    // guaranteed rather than retried.
-    const legal: number[] = [];
-    for (let c = 0; c < span; c++) {
-      if (Math.abs(c - first) >= NODE_MIN_SEPARATION) legal.push(c);
-    }
-    const second = legal[rng.nextInt(legal.length)] ?? first;
-    return first <= second ? [first, second] : [second, first];
+    // `first` ranges over the positions where a pair of this width still fits.
+    const first = rng.nextInt(BOARD.cols - gap);
+    return [first, first + gap];
   };
 
   const [a1, a2] = pick();
@@ -205,7 +230,15 @@ export function zoneOwner(row: number): "A" | "B" | null {
 export function terrainForSeed(seed: number, anchors: HqAnchors): Coord[] {
   // A stream of its own, so adding or removing craters cannot shift the HQ draw.
   const rng = mulberry32((seed ^ 0x7f4a7c15) >>> 0);
-  const count = 2 + rng.nextInt(2); // 2 or 3 per side
+  /*
+    Exactly two per side, not two-or-three.
+
+    The third crater was the marginal one and it cost pace: matches landing in
+    the 15-30s band fell from 40.1% to 27.8% when craters arrived, and idle
+    units tripled. Two still pose a different geometric question every seed,
+    which is the whole reason craters exist.
+  */
+  const count = 2;
 
   const blockedCols = new Set<number>();
   for (const side of [anchors.A, anchors.B]) for (const n of side) blockedCols.add(n.col);
@@ -221,13 +254,18 @@ export function terrainForSeed(seed: number, anchors: HqAnchors): Coord[] {
   }
 
   const craters: Coord[] = [];
-  const taken = new Set<number>();
+  // No two craters in the same or an adjacent column: two side-by-side blockers
+  // wall off a quadrant of the board, and a draw that can silently delete a
+  // flank is a draw that decides the match before either player places a unit.
+  const usedCols = new Set<number>();
   for (let i = 0; i < count && candidates.length > 0; i++) {
-    const pick = candidates[rng.nextInt(candidates.length)];
+    const open = candidates.filter(
+      (c) => !usedCols.has(c.col) && !usedCols.has(c.col - 1) && !usedCols.has(c.col + 1),
+    );
+    if (open.length === 0) break;
+    const pick = open[rng.nextInt(open.length)];
     if (pick === undefined) break;
-    const key = pick.row * BOARD.cols + pick.col;
-    if (taken.has(key)) continue;
-    taken.add(key);
+    usedCols.add(pick.col);
     craters.push(pick);
     // 180-degree rotation onto the other half.
     craters.push({ row: BOARD.rows - 1 - pick.row, col: BOARD.cols - 1 - pick.col });
