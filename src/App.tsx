@@ -32,7 +32,8 @@ export function App() {
       // tile size can never drift out of sync with the actual grid.
       style={{ "--board-cols": BOARD.cols, "--board-rows": BOARD.rows } as React.CSSProperties}
     >
-      <DisplayControls />
+      {/* Deployment renders its own inside the board top bar. */}
+      {phase !== "deploy" && <DisplayControls />}
       {phase === "home" && <HomeScreen />}
       {phase === "deploy" && <DeploymentScreen />}
       {phase === "handoff" && <HandoffScreen />}

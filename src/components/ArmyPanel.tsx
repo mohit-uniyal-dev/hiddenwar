@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MVP_ARMY, type Roster, UNITS } from "../game/config/units.ts";
 import type { Deployment, Direction, PlacedUnit, Team, UnitTypeId } from "../game/types.ts";
 import { isComplete, remainingFor } from "../store/gameStore.ts";
@@ -81,6 +81,26 @@ export function ArmyPanel({
     if (selectedUnit !== null) setOpen(true);
   }, [selectedUnit]);
 
+  /**
+   * Publish the sheet's COLLAPSED height so the board can centre in exactly the
+   * space above it.
+   *
+   * A hardcoded reservation was over-estimating and leaving a visible gap under
+   * the board. Measuring only while collapsed is deliberate: expanding must not
+   * move the battlefield.
+   */
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = panelRef.current;
+    if (el === null || open) return;
+    const publish = () =>
+      document.documentElement.style.setProperty("--sheet-collapsed", `${el.offsetHeight}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [open]);
+
   const left = remainingFor(deployment, kit);
   const ready = isComplete(deployment, kit);
   // A puzzle kit lists only the pieces it hands you.
@@ -92,7 +112,7 @@ export function ArmyPanel({
   const forceName = team === "A" ? "Blue Force" : "Orange Force";
 
   return (
-    <div className={`panel army team-${team} ${open ? "expanded" : ""}`}>
+    <div ref={panelRef} className={`panel army team-${team} ${open ? "expanded" : ""}`}>
       <button
         type="button"
         className="sheet-grip"

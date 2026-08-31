@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArmyPanel } from "../components/ArmyPanel.tsx";
 import { Board, type RenderUnit, toRenderUnits } from "../components/Board.tsx";
+import { DisplayControls } from "../components/DisplayControls.tsx";
 import { UNITS } from "../game/config/units.ts";
 import { arcPreview } from "../game/engine/preview.ts";
 import { canPlace } from "../game/models/deployment.ts";
@@ -246,14 +247,20 @@ export function DeploymentScreen() {
               ? `${activeTeam === "A" ? "Blue" : "Orange"} deploys`
               : "Your deployment"}
           </span>
-          <button
-            type="button"
-            className="ghost-btn"
-            onClick={clearAll}
-            disabled={deployment.units.length <= 1}
-          >
-            <span aria-hidden="true">⟲</span> Reset
-          </button>
+          <span className="topbar-actions">
+            <button
+              type="button"
+              className="ghost-btn"
+              onClick={clearAll}
+              disabled={deployment.units.length <= 1}
+            >
+              <span aria-hidden="true">⟲</span> Reset
+            </button>
+            {/* Fullscreen lives in the bar rather than floating over the board,
+                so the row above the battlefield holds every screen-level
+                control instead of two competing for the same corner. */}
+            <DisplayControls />
+          </span>
         </div>
         <div className={`battlefield-heading team-${activeTeam}`}>
           <span>

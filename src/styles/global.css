@@ -1973,3 +1973,38 @@ ul.objectives li.fail {
  * stale in a way that would have gone unnoticed: it hardcoded `/12` and `/9`
  * for tile sizing, so it was still laying out the old board.
  */
+
+/* Fullscreen sits in the board top bar on the deployment screen. */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.board-topbar .fullscreen-toggle {
+  position: static;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  background: rgba(217, 205, 180, 0.1);
+  border: 1px solid rgba(217, 205, 180, 0.32);
+  color: #ddd2b8;
+  box-shadow: none;
+}
+
+.board-topbar .fullscreen-toggle svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+/* Icon only in the bar — the label costs room the title needs. */
+.board-topbar .fullscreen-toggle span {
+  display: none;
+}
+
+@media (max-width: 860px) and (orientation: portrait) {
+  .board-topbar .fullscreen-toggle {
+    padding: 0.45rem 0.55rem;
+    min-height: 2.2rem;
+  }
+}
