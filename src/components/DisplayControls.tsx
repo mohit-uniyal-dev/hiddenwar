@@ -10,7 +10,7 @@ type WebkitElement = HTMLElement & {
 };
 
 type LockableOrientation = ScreenOrientation & {
-  lock?: (orientation: "landscape") => Promise<void>;
+  lock?: (orientation: "portrait") => Promise<void>;
   unlock?: () => void;
 };
 
@@ -19,7 +19,18 @@ function fullscreenElement(): Element | null {
   return document.fullscreenElement ?? webkitDocument.webkitFullscreenElement ?? null;
 }
 
-/** Fullscreen and orientation controls shared by every game phase. */
+/**
+ * Fullscreen control, shared by every game phase.
+ *
+ * There is deliberately no "rotate your device" gate any more. There used to be
+ * one, from when the board was 12 wide by 9 tall and genuinely needed landscape.
+ * The board is now 8 by 11 — portrait — so a gate demanding landscape would be
+ * asking players to turn away from the orientation the game is designed for,
+ * and phones are already held that way.
+ *
+ * Orientation lock is best-effort and only meaningful in fullscreen; it now
+ * asks for portrait, matching the board.
+ */
 export function DisplayControls() {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -34,30 +45,25 @@ export function DisplayControls() {
     };
   }, []);
 
-  const enterFullscreen = useCallback(async () => {
-    const root = document.documentElement as WebkitElement;
-
-    try {
-      if (root.requestFullscreen !== undefined) {
-        await root.requestFullscreen({ navigationUI: "hide" });
-      } else {
-        await root.webkitRequestFullscreen?.();
-      }
-    } catch {
-      // Some mobile browsers expose the API but reject it outside an installed
-      // app. The landscape prompt remains useful in that case.
-    }
-
-    try {
-      await (screen.orientation as LockableOrientation).lock?.("landscape");
-    } catch {
-      // Orientation locking is best-effort and requires fullscreen on Android.
-    }
-  }, []);
-
   const toggleFullscreen = useCallback(async () => {
     if (fullscreenElement() === null) {
-      await enterFullscreen();
+      const root = document.documentElement as WebkitElement;
+      try {
+        if (root.requestFullscreen !== undefined) {
+          await root.requestFullscreen({ navigationUI: "hide" });
+        } else {
+          await root.webkitRequestFullscreen?.();
+        }
+      } catch {
+        // Some mobile browsers expose the API but reject it outside an
+        // installed app. Fullscreen is a convenience, not a requirement.
+      }
+
+      try {
+        await (screen.orientation as LockableOrientation).lock?.("portrait");
+      } catch {
+        // Locking requires fullscreen on Android and is unavailable on iOS.
+      }
       return;
     }
 
@@ -68,33 +74,19 @@ export function DisplayControls() {
     } finally {
       (screen.orientation as LockableOrientation).unlock?.();
     }
-  }, [enterFullscreen]);
+  }, []);
 
   return (
-    <>
-      <button
-        type="button"
-        className={`fullscreen-toggle ${isFullscreen ? "active" : ""}`}
-        onClick={toggleFullscreen}
-        aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-        title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-      >
-        <FullscreenIcon active={isFullscreen} />
-        <span>{isFullscreen ? "Exit" : "Fullscreen"}</span>
-      </button>
-
-      <dialog className="orientation-gate" aria-labelledby="rotate-title" open>
-        <div className="rotate-device" aria-hidden="true">
-          <span />
-        </div>
-        <p className="orientation-kicker">Hidden Front plays in landscape</p>
-        <h1 id="rotate-title">Rotate your device</h1>
-        <p>Turn your phone sideways for the full battlefield.</p>
-        <button type="button" className="primary" onClick={enterFullscreen}>
-          Enter fullscreen
-        </button>
-      </dialog>
-    </>
+    <button
+      type="button"
+      className={`fullscreen-toggle ${isFullscreen ? "active" : ""}`}
+      onClick={toggleFullscreen}
+      aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+      title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+    >
+      <FullscreenIcon active={isFullscreen} />
+      <span>{isFullscreen ? "Exit" : "Fullscreen"}</span>
+    </button>
   );
 }
 
