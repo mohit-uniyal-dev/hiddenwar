@@ -22,7 +22,7 @@ export function placementTiles(
   row: number,
   col: number,
 ): { row: number; col: number }[] | null {
-  const tiles = footprint(row, col, UNITS[type].size);
+  const tiles = footprint(row, col, UNITS[type].width, UNITS[type].height);
   for (const t of tiles) {
     if (!isInsideBoard(t.row, t.col)) return null;
   }
@@ -54,7 +54,12 @@ export function canPlace(
   const occupied = new Set<number>();
   existing.forEach((unit, index) => {
     if (index === ignoreIndex) return;
-    for (const t of footprint(unit.row, unit.col, UNITS[unit.type].size)) {
+    for (const t of footprint(
+      unit.row,
+      unit.col,
+      UNITS[unit.type].width,
+      UNITS[unit.type].height,
+    )) {
       occupied.add(t.row * BOARD.cols + t.col);
     }
   });

@@ -238,7 +238,7 @@ describe("victory conditions (§B.3)", () => {
     expect(result.reason).toBe("armyDestroyed");
     // The losing HQ is untouched — this is the rule that closes the
     // unreachable-HQ hole (§S1.1).
-    expect(result.stats.teams.B.hqHpRemaining).toBe(200);
+    expect(result.stats.teams.B.hqHpRemaining).toBe(100);
   });
 
   it("HQ destruction ends the battle", () => {

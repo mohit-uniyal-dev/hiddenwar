@@ -22,31 +22,46 @@ export function toTicks(seconds: number): number {
 
 export const BOARD = {
   /**
-   * Eight columns, eleven rows — portrait, for one-handed play.
+   * Eight columns, nine rows — portrait, for one-handed play.
    *
    * Narrowing is what buys touch ergonomics: at 12 columns a 360px phone gives
-   * ~28px tiles, well under the 44px guidance in §E.6; at 8 it gives ~43px.
-   * Height does NOT help — past about eleven rows the viewport becomes the
-   * binding constraint and tiles start shrinking again, so going taller than
-   * this would cost tile size rather than gain it.
+   * ~28px tiles, well under the 44px guidance; at 8 it gives ~43px. Height does
+   * not help — past about eleven rows the viewport binds and tiles shrink again.
+   *
+   * Zones are FOUR rows deep, not five, and that is load-bearing:
+   * `useful infantry rows = weapon range - gap depth`, so at 4 deep the enemy
+   * HQ's near tile falls inside soldier range from the front rank. At 5 deep it
+   * does not, and infantry was locked out of the win condition entirely —
+   * measured at 0% of all HQ damage for both soldiers and machine guns.
    */
   cols: 8,
-  rows: 11,
-  /** Rows 0-4 (displayed as 1-5) belong to Player B. */
-  teamBRows: [0, 4] as const,
-  /** Row 5 is no man's land. Nothing may ever be placed there (§B.1). */
-  noMansLandRows: [5, 5] as const,
-  /** Rows 6-10 (displayed as 7-11) belong to Player A. */
-  teamARows: [6, 10] as const,
+  rows: 9,
+  /** Rows 0-3 (displayed as 1-4) belong to Player B. */
+  teamBRows: [0, 3] as const,
+  /** Row 4 is no man's land. Nothing may ever be placed there. */
+  noMansLandRows: [4, 4] as const,
+  /** Rows 5-8 (displayed as 6-9) belong to Player A. */
+  teamARows: [5, 8] as const,
 } as const;
 
 /** The HQ footprint. */
-export const HQ_SIZE = 2;
+/** A node is one column wide and two rows deep. */
+export const HQ_WIDTH = 1;
+export const HQ_HEIGHT = 2;
 
-export interface HqAnchors {
-  readonly A: { readonly row: number; readonly col: number };
-  readonly B: { readonly row: number; readonly col: number };
+export interface Anchor {
+  readonly row: number;
+  readonly col: number;
 }
+
+/** Each side defends TWO nodes. Both must fall for the objective to be lost. */
+export interface HqAnchors {
+  readonly A: readonly Anchor[];
+  readonly B: readonly Anchor[];
+}
+
+/** Columns must sit this far apart, or the two nodes collapse into one front. */
+export const NODE_MIN_SEPARATION = 3;
 
 /**
  * Both HQs stand on the rear rank of their own zone, each in a column drawn
@@ -73,22 +88,66 @@ export interface HqAnchors {
  */
 export function hqAnchorsForSeed(seed: number): HqAnchors {
   const rng = mulberry32(seed);
-  const span = BOARD.cols - HQ_SIZE + 1;
+  const rowA = BOARD.teamARows[1] - HQ_HEIGHT + 1;
+  const rowB = BOARD.teamBRows[0];
+
+  /*
+    Two nodes per side, columns drawn independently, forced at least
+    NODE_MIN_SEPARATION apart.
+
+    Two objectives turn deployment into a Colonel Blotto problem — hidden
+    allocation of force across multiple fronts — which has no pure-strategy
+    equilibrium. Every split is a bet about the opponent's split, which is
+    exactly the read-dependent decision a single objective could never produce.
+
+    It works here precisely BECAUSE units never move: a stack that kills one
+    node is then permanently stranded and can never touch the other. The
+    no-movement rule, which was the cause of the solved formation, becomes the
+    thing that forces force division.
+  */
+  const pick = (): [number, number] => {
+    const span = BOARD.cols;
+    const first = rng.nextInt(span);
+    // Choose the second from the columns far enough away, so separation is
+    // guaranteed rather than retried.
+    const legal: number[] = [];
+    for (let c = 0; c < span; c++) {
+      if (Math.abs(c - first) >= NODE_MIN_SEPARATION) legal.push(c);
+    }
+    const second = legal[rng.nextInt(legal.length)] ?? first;
+    return first <= second ? [first, second] : [second, first];
+  };
+
+  const [a1, a2] = pick();
+  const [b1, b2] = pick();
   return {
-    A: { row: BOARD.teamARows[1] - HQ_SIZE + 1, col: rng.nextInt(span) },
-    B: { row: BOARD.teamBRows[0], col: rng.nextInt(span) },
+    A: [
+      { row: rowA, col: a1 },
+      { row: rowA, col: a2 },
+    ],
+    B: [
+      { row: rowB, col: b1 },
+      { row: rowB, col: b2 },
+    ],
   };
 }
 
 /** The centre position, used by hand-authored puzzles and as a fallback. */
+/** Centre-ish positions, used by hand-authored puzzles and as a fallback. */
 export const HQ_ANCHOR: HqAnchors = {
-  A: { row: 9, col: 3 },
-  B: { row: 0, col: 3 },
+  A: [
+    { row: 7, col: 2 },
+    { row: 7, col: 5 },
+  ],
+  B: [
+    { row: 0, col: 2 },
+    { row: 0, col: 5 },
+  ],
 };
 
 export const RULES = {
-  /** Hard cap: 1,200 ticks = 60 seconds (§B.3). */
-  maxTicks: 1200,
+  /** Hard cap: 900 ticks = 45 seconds. Timeout is decided on node damage. */
+  maxTicks: 900,
   /** Battle ends after 100 consecutive ticks (5s) with zero damage (§B.3). */
   deadAirTicks: 100,
   /**
@@ -103,6 +162,11 @@ export const DAMAGE_MULTIPLIERS = {
   bullet: { infantry: 1.0, armored: 0.25, structure: 0.25 },
   heavy: { infantry: 0.5, armored: 1.0, structure: 1.5 },
   explosive: { infantry: 1.0, armored: 0.5, structure: 1.0 },
+  /**
+   * Pierce ignores armour class almost entirely — its counterplay is geometry
+   * (spread out, or screen the lane), not unit type.
+   */
+  pierce: { infantry: 1.0, armored: 1.0, structure: 0.75 },
 } as const;
 
 export function isInsideBoard(row: number, col: number): boolean {

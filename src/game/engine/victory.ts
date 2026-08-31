@@ -28,24 +28,37 @@ function combatCapableCount(state: BattleState, team: Team): number {
   return n;
 }
 
+/** Every HQ node a team owns. Losing the objective means losing them ALL. */
+export function hqNodes(state: BattleState, team: Team): Unit[] {
+  return state.units.filter((u) => u.team === team && u.type === "hq");
+}
+
 export function hq(state: BattleState, team: Team): Unit | undefined {
-  return state.units.find((u) => u.team === team && u.type === "hq");
+  return hqNodes(state, team)[0];
 }
 
 function hqHp(state: BattleState, team: Team): number {
-  const h = hq(state, team);
-  return h === undefined || h.destroyed ? 0 : h.hp;
+  let total = 0;
+  for (const node of hqNodes(state, team)) if (!node.destroyed) total += node.hp;
+  return total;
 }
 
 /**
- * An army with no HQ at all has not "lost its HQ" — it never had one.
+ * The objective falls only when EVERY node does.
  *
- * Classic mode always deploys one, but puzzle setups, test fixtures and the
- * balance sweep routinely run HQ-less armies, and they must be decided by army
- * destruction or the tiebreak ladder instead.
+ * An army with no nodes at all has not "lost its objective" — it never had one;
+ * puzzles, fixtures and the sweep run node-less armies, and those are decided by
+ * army destruction or the tiebreak ladder instead.
+ *
+ * The "destroy either node" version must never ship: attack would simply
+ * concentrate on whichever node is less defensible, which is strictly worse
+ * than a single HQ. Requiring both is what forces an attacker to divide, and
+ * since units never move, the force that kills the first node is then stranded
+ * and can never help against the second.
  */
 function hqIsDestroyed(state: BattleState, team: Team): boolean {
-  return hq(state, team)?.destroyed === true;
+  const nodes = hqNodes(state, team);
+  return nodes.length > 0 && nodes.every((n) => n.destroyed);
 }
 
 function survivingValue(state: BattleState, team: Team): number {
@@ -59,6 +72,16 @@ function survivingValue(state: BattleState, team: Team): number {
  *   (a) higher HQ HP  ->  (b) higher surviving tactical value  ->  (c) draw.
  */
 function tiebreak(state: BattleState, reason: VictoryReason): Verdict {
+  /*
+    Node damage first, and this is what stops a timeout rewarding the
+    concentrator. Winning one lane earns exactly one node and a pile of stranded
+    units; the clock then works AGAINST you, because the opponent's untouched
+    front keeps chipping the other objective.
+  */
+  const aDealt = state.hqDamageDealt.A;
+  const bDealt = state.hqDamageDealt.B;
+  if (aDealt !== bDealt) return { winner: aDealt > bDealt ? "A" : "B", reason };
+
   const aHq = hqHp(state, "A");
   const bHq = hqHp(state, "B");
   if (aHq !== bHq) return { winner: aHq > bHq ? "A" : "B", reason };

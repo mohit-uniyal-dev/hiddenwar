@@ -25,13 +25,16 @@ describe("formation generator", () => {
     }
   });
 
-  it("puts the HQ on the drawn anchor, never somewhere of its own choosing", () => {
+  it("puts both HQ nodes on their drawn anchors", () => {
     for (let seed = 0; seed < 40; seed++) {
       const anchors = hqAnchorsForSeed(seed);
       for (const archetype of ARCHETYPES) {
         const formation = generateFormation("A", anchors, archetype, mulberry32(seed));
-        const hq = formation.units.find((u) => u.type === "hq");
-        expect(hq).toMatchObject({ row: anchors.A.row, col: anchors.A.col });
+        const nodes = formation.units.filter((u) => u.type === "hq");
+        expect(nodes).toHaveLength(2);
+        for (const a of anchors.A) {
+          expect(nodes.some((n) => n.row === a.row && n.col === a.col)).toBe(true);
+        }
       }
     }
   });

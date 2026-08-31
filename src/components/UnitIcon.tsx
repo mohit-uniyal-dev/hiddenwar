@@ -60,6 +60,24 @@ function iconFor(type: UnitTypeId) {
           <path d="M27 30h11v5H27z" className="icon-detail" />
         </>
       );
+    case "atgun":
+      // A long, low barrel on a splayed trail — reads as "fires down a line",
+      // which is exactly what the unit does.
+      return (
+        <>
+          <path d="M6 30h44v7H6z" fill="currentColor" />
+          <path d="M46 28h13v11H46z" fill="currentColor" />
+          <path
+            d="M30 37 14 56M34 37l16 19"
+            stroke="currentColor"
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
+          <circle cx="32" cy="36" r="7" fill="currentColor" />
+          <circle cx="32" cy="36" r="3" className="icon-detail" />
+          <path d="M12 24h10v6H12z" fill="currentColor" />
+        </>
+      );
     case "tank":
       return (
         <>

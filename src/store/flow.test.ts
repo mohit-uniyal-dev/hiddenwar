@@ -6,7 +6,12 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { BOARD, hqAnchorsForSeed, zoneOwner } from "../game/config/gameConfig.ts";
+import {
+  BOARD,
+  NODE_MIN_SEPARATION,
+  hqAnchorsForSeed,
+  zoneOwner,
+} from "../game/config/gameConfig.ts";
 import { DIFFICULTY_POOLS } from "../game/content/formations.ts";
 import { evaluatePuzzle, puzzleById } from "../game/content/puzzles.ts";
 import { arcPreview } from "../game/engine/preview.ts";
@@ -22,51 +27,70 @@ describe("hotseat flow", () => {
     store().startHotseat();
   });
 
-  it("starts on the deployment screen as Blue, HQ already standing", () => {
+  it("starts with BOTH HQ nodes already standing", () => {
     expect(store().phase).toBe("deploy");
     expect(store().activeTeam).toBe("A");
-    // The HQ is placed automatically — the player never positions it.
-    expect(store().deployments.A.units).toHaveLength(1);
-    expect(store().deployments.A.units[0]?.type).toBe("hq");
-    expect(store().deployments.B.units[0]?.type).toBe("hq");
+    // Nodes are placed automatically — the player never positions them.
+    expect(store().deployments.A.units).toHaveLength(2);
+    expect(store().deployments.A.units.every((u) => u.type === "hq")).toBe(true);
+    expect(store().deployments.B.units.every((u) => u.type === "hq")).toBe(true);
   });
 
-  it("draws the two HQ columns INDEPENDENTLY, so attack and defence differ", () => {
+  it("puts two nodes a side on the rear rank of each zone", () => {
     const { hqAnchors } = store();
-    // Rear rank of each zone.
-    expect(hqAnchors.B.row).toBe(BOARD.teamBRows[0]);
-    expect(hqAnchors.A.row).toBe(BOARD.teamARows[1] - 1);
-    expect(store().deployments.A.units[0]).toMatchObject(hqAnchors.A);
-    expect(store().deployments.B.units[0]).toMatchObject(hqAnchors.B);
+    expect(hqAnchors.A).toHaveLength(2);
+    expect(hqAnchors.B).toHaveLength(2);
+    for (const a of hqAnchors.B) expect(a.row).toBe(BOARD.teamBRows[0]);
+    for (const a of hqAnchors.A) expect(a.row).toBe(BOARD.teamARows[1] - 1);
   });
 
-  it("does not lock the columns together", () => {
+  it("keeps the two nodes far enough apart to be separate fronts", () => {
+    for (let seed = 0; seed < 400; seed++) {
+      const drawn = hqAnchorsForSeed(seed);
+      for (const side of [drawn.A, drawn.B]) {
+        const cols = side.map((n) => n.col);
+        // Adjacent nodes collapse back into a single front, which is the whole
+        // thing twin objectives exist to prevent.
+        expect(Math.abs((cols[0] ?? 0) - (cols[1] ?? 0))).toBeGreaterThanOrEqual(
+          NODE_MIN_SEPARATION,
+        );
+      }
+    }
+  });
+
+  it("does not lock the two sides together", () => {
     // Mirrored columns made the lane you attack and the lane you defend the
     // same lane, so one stack did both jobs — measured at an 80% win rate with
     // no counter. They must be able to differ.
     let differed = 0;
     for (let seed = 0; seed < 200; seed++) {
-      const a = hqAnchorsForSeed(seed);
-      if (a.A.col !== a.B.col) differed++;
+      const drawn = hqAnchorsForSeed(seed);
+      if (drawn.A.some((x, i) => x.col !== drawn.B[i]?.col)) differed++;
     }
     expect(differed).toBeGreaterThan(120);
   });
 
-  it("keeps both HQs inside the board for every possible draw", () => {
+  it("keeps every node inside its own zone for every possible draw", () => {
     for (let seed = 0; seed < 500; seed++) {
-      const a = hqAnchorsForSeed(seed);
-      expect(a.A.col).toBeGreaterThanOrEqual(0);
-      expect(a.A.col).toBeLessThanOrEqual(BOARD.cols - 2);
-      expect(zoneOwner(a.A.row)).toBe("A");
-      expect(zoneOwner(a.A.row + 1)).toBe("A");
-      expect(zoneOwner(a.B.row)).toBe("B");
-      expect(zoneOwner(a.B.row + 1)).toBe("B");
+      const drawn = hqAnchorsForSeed(seed);
+      for (const n of drawn.A) {
+        expect(n.col).toBeGreaterThanOrEqual(0);
+        expect(n.col).toBeLessThan(BOARD.cols);
+        expect(zoneOwner(n.row)).toBe("A");
+        expect(zoneOwner(n.row + 1)).toBe("A");
+      }
+      for (const n of drawn.B) {
+        expect(zoneOwner(n.row)).toBe("B");
+        expect(zoneOwner(n.row + 1)).toBe("B");
+      }
     }
   });
 
   it("varies the column across matches", () => {
     const seen = new Set<number>();
-    for (let seed = 0; seed < 200; seed++) seen.add(hqAnchorsForSeed(seed).A.col);
+    for (let seed = 0; seed < 200; seed++) {
+      for (const n of hqAnchorsForSeed(seed).A) seen.add(n.col);
+    }
     // The whole point is that the lane you must force changes between matches.
     expect(seen.size).toBeGreaterThan(5);
   });
@@ -83,7 +107,7 @@ describe("hotseat flow", () => {
     // A rematch is the same battlefield with your formation reloaded — moving
     // the objective would break edit-and-rerun (§D.2).
     expect(store().hqAnchors).toEqual(before);
-    expect(store().deployments.A.units[0]).toMatchObject(before.A);
+    expect(store().deployments.A.units.filter((u) => u.type === "hq")).toHaveLength(2);
   });
 
   it("does not hand the player an HQ to place", () => {
@@ -95,9 +119,10 @@ describe("hotseat flow", () => {
     expect(isComplete(store().deployments.A, kit)).toBe(true);
   });
 
-  it("refuses to remove or overwrite the HQ", () => {
+  it("refuses to remove or overwrite an HQ node", () => {
     const before = store().deployments.A.units;
-    const anchor = store().hqAnchors.A;
+    const anchor = store().hqAnchors.A[0];
+    if (anchor === undefined) throw new Error("no node");
     store().removeAt(0);
     expect(store().deployments.A.units).toEqual(before);
 
@@ -108,10 +133,10 @@ describe("hotseat flow", () => {
 
   it("clearing keeps the HQ and wipes everything else", () => {
     store().autoFill();
-    expect(store().deployments.A.units.length).toBeGreaterThan(1);
+    expect(store().deployments.A.units.length).toBeGreaterThan(2);
     store().clearAll();
-    expect(store().deployments.A.units).toHaveLength(1);
-    expect(store().deployments.A.units[0]?.type).toBe("hq");
+    expect(store().deployments.A.units).toHaveLength(2);
+    expect(store().deployments.A.units.every((u) => u.type === "hq")).toBe(true);
   });
 
   it("auto-fill produces a legal, complete army for both teams", () => {
@@ -170,40 +195,40 @@ describe("hotseat flow", () => {
 
   it("refuses illegal placements", () => {
     store().selectType("soldier");
-    // No man's land is row 4 and is permanently off limits (§B.1).
+    // No man's land is row 4 and is permanently off limits.
     store().place(4, 3);
     // The enemy half is not yours to fill.
     store().place(2, 3);
-    // Only the automatic HQ is on the board.
-    expect(store().deployments.A.units).toHaveLength(1);
-
-    store().place(6, 3);
+    // Only the two automatic nodes are on the board.
     expect(store().deployments.A.units).toHaveLength(2);
+
+    store().place(5, 3);
+    expect(store().deployments.A.units).toHaveLength(3);
 
     // One unit per tile, hard rule.
-    store().place(6, 3);
-    expect(store().deployments.A.units).toHaveLength(2);
+    store().place(5, 3);
+    expect(store().deployments.A.units).toHaveLength(3);
   });
 
   it("never exceeds the fixed army allowance", () => {
     store().selectType("mg");
-    for (let col = 0; col < 8; col++) store().place(6, col);
-    expect(store().deployments.A.units.filter((u) => u.type === "mg")).toHaveLength(3);
+    for (let col = 0; col < 8; col++) store().place(5, col);
+    expect(store().deployments.A.units.filter((u) => u.type === "mg")).toHaveLength(2);
 
     store().selectType("tank");
-    for (let col = 0; col < 6; col++) store().place(7, col);
+    for (let col = 0; col < 6; col++) store().place(5, col);
     expect(store().deployments.A.units.filter((u) => u.type === "tank")).toHaveLength(1);
   });
 
   it("repositions a placed unit by moving it to an empty tile", () => {
     store().selectType("soldier");
-    store().place(6, 3);
+    store().place(5, 3);
     const index = store().deployments.A.units.findIndex((u) => u.type === "soldier");
 
-    // The HQ occupies a random 2x2 footprint on the rear ranks (rows 9-10), so
-    // rows 6-8 are always clear and this test cannot become seed-dependent.
-    store().moveTo(index, 7, 4);
-    expect(store().deployments.A.units[index]).toMatchObject({ row: 7, col: 4 });
+    // The HQ occupies a random 2x2 footprint on the rear ranks (rows 7-8), so
+    // rows 5-6 are always clear and this test cannot become seed-dependent.
+    store().moveTo(index, 6, 4);
+    expect(store().deployments.A.units[index]).toMatchObject({ row: 6, col: 4 });
 
     // Facing survives the move — repositioning is not a re-placement.
     expect(store().deployments.A.units[index]?.facing).toBe("N");
@@ -211,37 +236,37 @@ describe("hotseat flow", () => {
 
   it("refuses moves onto illegal ground", () => {
     store().selectType("soldier");
-    store().place(6, 3);
+    store().place(5, 3);
     store().selectType("soldier");
-    store().place(6, 5);
+    store().place(5, 5);
     const index = store().deployments.A.units.findIndex((u) => u.type === "soldier");
     const before = store().deployments.A.units[index];
 
     store().moveTo(index, 4, 3); // no man's land
     store().moveTo(index, 2, 3); // enemy half
-    store().moveTo(index, 6, 5); // occupied by the other soldier
+    store().moveTo(index, 5, 5); // occupied by the other soldier
     expect(store().deployments.A.units[index]).toEqual(before);
   });
 
   it("lets a unit shuffle within its own footprint", () => {
     store().selectType("soldier");
-    store().place(6, 3);
+    store().place(5, 3);
     const index = store().deployments.A.units.findIndex((u) => u.type === "soldier");
     // A one-tile nudge must not collide with where the unit already stands.
     store().moveTo(index, 6, 4);
     expect(store().deployments.A.units[index]).toMatchObject({ row: 6, col: 4 });
   });
 
-  it("never lets the HQ be dragged off its anchor", () => {
-    const anchor = store().hqAnchors.A;
-    const hqIndex = store().deployments.A.units.findIndex((u) => u.type === "hq");
-    store().moveTo(hqIndex, 6, 1);
-    expect(store().deployments.A.units[hqIndex]).toMatchObject(anchor);
+  it("never lets an HQ node be dragged off its anchor", () => {
+    const before = store().deployments.A.units.filter((u) => u.type === "hq");
+    store().moveTo(0, 6, 1);
+    store().moveTo(1, 6, 1);
+    expect(store().deployments.A.units.filter((u) => u.type === "hq")).toEqual(before);
   });
 
   it("rotates a placed unit through all four facings", () => {
     store().selectType("soldier");
-    store().place(6, 3);
+    store().place(5, 3);
     const index = store().deployments.A.units.findIndex((u) => u.type === "soldier");
     store().selectPlaced(index);
     const seen = new Set<string>();
@@ -352,8 +377,11 @@ describe("vs AI mode", () => {
 
   it("puts the AI's HQ on its own drawn column, independent of yours", () => {
     const { hqAnchors } = store();
-    const hq = store().deployments.B.units.find((u) => u.type === "hq");
-    expect(hq).toMatchObject({ row: hqAnchors.B.row, col: hqAnchors.B.col });
+    const nodes = store().deployments.B.units.filter((u) => u.type === "hq");
+    expect(nodes).toHaveLength(2);
+    for (const a of hqAnchors.B) {
+      expect(nodes.some((n) => n.row === a.row && n.col === a.col)).toBe(true);
+    }
   });
 });
 
@@ -372,15 +400,15 @@ describe("puzzle mode", () => {
 
   it("caps placement at the kit, not the Classic army", () => {
     store().selectType("mg");
-    store().place(6, 5);
-    store().place(7, 2);
+    store().place(5, 5);
+    store().place(6, 2);
     expect(store().deployments.A.units.filter((u) => u.type === "mg")).toHaveLength(1);
     expect(isComplete(store().deployments.A, activeKit(store()))).toBe(true);
   });
 
   it("refuses units that are not in the kit", () => {
     store().selectType("tank");
-    store().place(6, 5);
+    store().place(5, 5);
     expect(store().deployments.A.units.filter((u) => u.type === "tank")).toHaveLength(0);
   });
 

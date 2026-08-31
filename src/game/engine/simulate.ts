@@ -172,6 +172,9 @@ function runTick(state: BattleState): void {
     if (target === undefined || target.destroyed) continue;
     target.hp -= hit.amount;
     target.damageTaken += hit.amount;
+    if (target.type === "hq" && source !== undefined) {
+      state.hqDamageDealt[source.team] += hit.amount;
+    }
     if (source !== undefined) source.damageDealt += hit.amount;
     state.events.push({
       type: "DAMAGE",

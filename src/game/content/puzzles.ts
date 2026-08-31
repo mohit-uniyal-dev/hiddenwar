@@ -77,10 +77,10 @@ export const PUZZLES: readonly Puzzle[] = [
     enemy: {
       team: "B",
       // Facing west into empty board: it will never shoot back.
-      units: [u("soldier", 4, 4, "W")],
+      units: [u("soldier", 3, 4, "W")],
     },
     objectives: [{ kind: "destroyAllEnemies", label: "Destroy the enemy force" }],
-    referenceSolution: [u("soldier", 6, 4, "N")],
+    referenceSolution: [u("soldier", 5, 4, "N")],
   },
 
   {
@@ -93,12 +93,12 @@ export const PUZZLES: readonly Puzzle[] = [
     kit: [{ type: "mg", count: 1 }],
     enemy: {
       team: "B",
-      units: [u("soldier", 4, 2, "W"), u("soldier", 4, 6, "E")],
+      units: [u("soldier", 3, 2, "W"), u("soldier", 3, 6, "E")],
     },
     objectives: [{ kind: "destroyAllEnemies", label: "Destroy BOTH targets" }],
     // From the front rank the cone is only 3 wide at this distance and misses
     // both. One row back it reaches 5 and catches them.
-    referenceSolution: [u("mg", 7, 4, "N")],
+    referenceSolution: [u("mg", 6, 4, "N")],
   },
 
   {
@@ -114,11 +114,11 @@ export const PUZZLES: readonly Puzzle[] = [
     ],
     enemy: {
       team: "B",
-      units: [u("sandbag", 4, 3), u("sandbag", 4, 4), u("sandbag", 4, 5), u("soldier", 3, 4, "S")],
+      units: [u("sandbag", 3, 3), u("sandbag", 3, 4), u("sandbag", 3, 5), u("soldier", 2, 4, "S")],
     },
     // Only the defender has to fall — the flanking sandbags may be left standing.
     objectives: [{ kind: "win", label: "Win the battle" }],
-    referenceSolution: [u("tank", 6, 4, "N"), u("soldier", 6, 3, "N"), u("soldier", 6, 5, "N")],
+    referenceSolution: [u("tank", 5, 4, "N"), u("soldier", 5, 3, "N"), u("soldier", 5, 5, "N")],
   },
 
   {
@@ -131,10 +131,10 @@ export const PUZZLES: readonly Puzzle[] = [
     kit: [{ type: "soldier", count: 2 }],
     // Your HQ stands where it always stands — this puzzle is about defending a
     // known position, not hiding one.
-    fixed: [u("hq", HQ_ANCHOR.A.row, HQ_ANCHOR.A.col)],
+    fixed: HQ_ANCHOR.A.map((a) => u("hq", a.row, a.col)),
     enemy: {
       team: "B",
-      units: [u("mortar", 4, 4, "S"), SENTRY],
+      units: [u("mortar", 3, 4, "S"), SENTRY],
     },
     objectives: [
       // "Win" has to be first. Without it, deploying nothing at all passes:
@@ -144,7 +144,7 @@ export const PUZZLES: readonly Puzzle[] = [
       { kind: "hqSurvives", label: "Your HQ survives" },
       { kind: "loseAtMost", label: "Lose no units", value: 0 },
     ],
-    referenceSolution: [u("soldier", 6, 4, "N"), u("soldier", 7, 4, "N")],
+    referenceSolution: [u("soldier", 5, 4, "N"), u("soldier", 6, 4, "N")],
   },
 
   {
@@ -157,12 +157,12 @@ export const PUZZLES: readonly Puzzle[] = [
     kit: [{ type: "mortar", count: 1 }],
     enemy: {
       team: "B",
-      units: [u("tank", 4, 4, "S")],
+      units: [u("tank", 3, 4, "S")],
     },
     objectives: [{ kind: "destroyAllEnemies", label: "Destroy the tank" }],
     // Three tiles away so the shell can arc, and off column 4 so the tank
     // never acquires a target.
-    referenceSolution: [u("mortar", 7, 2, "N")],
+    referenceSolution: [u("mortar", 6, 2, "N")],
   },
 ];
 

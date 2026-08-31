@@ -51,35 +51,63 @@ export const ARCHETYPES: readonly Archetype[] = [
     id: "line",
     label: "Front line",
     tell: "Holds the whole width of the front rank. Solid everywhere, concentrated nowhere — it rarely masses enough force on one lane to finish an objective quickly.",
-    depths: { soldier: [0], mg: [0, 1], tank: [1, 0], mortar: [4, 3], sandbag: [1, 2] },
+    depths: {
+      atgun: [0, 1],
+      soldier: [0],
+      mg: [0, 1],
+      tank: [1, 0],
+      mortar: [3, 2],
+      sandbag: [1, 2],
+    },
     sandbags: "guard",
   },
   {
     id: "turtle",
     label: "Turtle",
     tell: "Sits back and waits. Ceding the front rank means most of its army spends the battle out of range of anything.",
-    depths: { soldier: [1, 2], mg: [1, 2], tank: [2, 1], mortar: [4], sandbag: [2, 3] },
+    depths: {
+      atgun: [1, 2],
+      soldier: [1, 2],
+      mg: [1, 2],
+      tank: [2, 1],
+      mortar: [4],
+      sandbag: [2, 3],
+    },
     sandbags: "guard",
   },
   {
     id: "spread",
     label: "Spread",
     tell: "Deliberately dispersed to blunt splash. Safe from the mortar, but thin in every individual lane.",
-    depths: { soldier: [0, 1, 2], mg: [0, 1], tank: [1, 2], mortar: [2, 3], sandbag: [1, 2, 3, 4] },
+    depths: {
+      atgun: [0, 1],
+      soldier: [0, 1, 2],
+      mg: [0, 1],
+      tank: [1, 2],
+      mortar: [2, 3],
+      sandbag: [1, 2, 3, 4],
+    },
     sandbags: "scatter",
   },
   {
     id: "artillery",
     label: "Artillery-heavy",
     tell: "Leads with the mortar and keeps the rest back. Strong chip damage, but almost nothing contesting the ground in between.",
-    depths: { soldier: [0, 1], mg: [1], tank: [2, 3], mortar: [2], sandbag: [0, 1] },
+    depths: { atgun: [1, 2], soldier: [0, 1], mg: [1], tank: [2, 3], mortar: [2], sandbag: [0, 1] },
     sandbags: "scatter",
   },
   {
     id: "hqrush",
     label: "HQ rush",
     tell: "Everything aligned on your HQ's column. Brutal if the lane opens — and it collapses against a defence that concentrates on the same lane.",
-    depths: { soldier: [0, 1], mg: [0, 1], tank: [1, 0], mortar: [3, 4], sandbag: [2, 3] },
+    depths: {
+      atgun: [0, 1],
+      soldier: [0, 1],
+      mg: [0, 1],
+      tank: [1, 0],
+      mortar: [3, 4],
+      sandbag: [2, 3],
+    },
     sandbags: "scatter",
     columnBias: "enemyHq",
   },
@@ -87,7 +115,14 @@ export const ARCHETYPES: readonly Archetype[] = [
     id: "hqguard",
     label: "HQ lane guard",
     tell: "Everything massed on its own HQ's column. Nearly unbreakable head-on, but it concedes the rest of the board, so it struggles to reach your objective.",
-    depths: { soldier: [0, 1], mg: [0, 1], tank: [1, 2], mortar: [4], sandbag: [1, 2] },
+    depths: {
+      atgun: [1, 0],
+      soldier: [0, 1],
+      mg: [0, 1],
+      tank: [1, 2],
+      mortar: [4],
+      sandbag: [1, 2],
+    },
     sandbags: "guard",
     columnBias: "ownHq",
   },
@@ -96,11 +131,12 @@ export const ARCHETYPES: readonly Archetype[] = [
     label: "Random (control)",
     tell: "No particular shape at all. Unpredictable, and usually incoherent.",
     depths: {
-      soldier: [0, 1, 2, 3, 4],
-      mg: [0, 1, 2, 3, 4],
-      tank: [0, 1, 2, 3, 4],
-      mortar: [0, 1, 2, 3, 4],
-      sandbag: [0, 1, 2, 3, 4],
+      soldier: [0, 1, 2, 3],
+      mg: [0, 1, 2, 3],
+      atgun: [0, 1, 2, 3],
+      tank: [0, 1, 2, 3],
+      mortar: [0, 1, 2, 3],
+      sandbag: [0, 1, 2, 3],
     },
     sandbags: "scatter",
   },
@@ -110,12 +146,13 @@ export function archetypeById(id: ArchetypeId): Archetype {
   return ARCHETYPES.find((a) => a.id === id) ?? (ARCHETYPES[0] as Archetype);
 }
 
+/** With two nodes a side, "the HQ column" is the midpoint between them. */
 function biasCol(archetype: Archetype, anchors: HqAnchors, team: Team): number {
-  const enemy = team === "A" ? anchors.B : anchors.A;
-  const own = anchors[team];
-  const target = archetype.columnBias === "ownHq" ? own : enemy;
-  // Centre of the 2-wide footprint.
-  return target.col;
+  const target =
+    archetype.columnBias === "ownHq" ? anchors[team] : anchors[team === "A" ? "B" : "A"];
+  const cols = target.map((a) => a.col);
+  const sum = cols.reduce((x, y) => x + y, 0);
+  return Math.round(sum / Math.max(1, cols.length));
 }
 
 /** Depth 0 is the rank nearest the enemy, whichever side you are on. */
@@ -138,8 +175,8 @@ function shuffled(values: number[], rng: Rng): number[] {
 }
 
 const ALL_COLS = Array.from({ length: BOARD.cols }, (_, i) => i);
-/** Depth 0 is the rank nearest the enemy; zones are five rows deep. */
-const ALL_DEPTHS = [0, 1, 2, 3, 4];
+/** Depth 0 is the rank nearest the enemy; zones are four rows deep. */
+const ALL_DEPTHS = [0, 1, 2, 3];
 
 /**
  * Build one legal army for a team, in the shape of the given archetype.
@@ -154,8 +191,13 @@ export function generateFormation(
   archetype: Archetype,
   rng: Rng,
 ): Deployment {
-  const anchor = anchors[team];
-  const units: PlacedUnit[] = [{ type: "hq", row: anchor.row, col: anchor.col, facing: "N" }];
+  const nodes = anchors[team];
+  const units: PlacedUnit[] = nodes.map((a) => ({
+    type: "hq" as const,
+    row: a.row,
+    col: a.col,
+    facing: "N" as const,
+  }));
   const facing: Direction = team === "A" ? "N" : "S";
 
   const tryPlace = (type: UnitTypeId, depths: number[], cols: number[]): boolean => {
@@ -171,11 +213,9 @@ export function generateFormation(
     return false;
   };
 
-  // Sandbags that guard the HQ want the tiles between it and the enemy.
+  // Sandbags that guard the HQ want the tiles between the nodes and the enemy.
   const guardCols = shuffled(
-    [anchor.col - 1, anchor.col, anchor.col + 1, anchor.col + 2].filter(
-      (c) => c >= 0 && c < BOARD.cols,
-    ),
+    nodes.flatMap((a) => [a.col - 1, a.col, a.col + 1]).filter((c) => c >= 0 && c < BOARD.cols),
     rng,
   );
 
@@ -200,7 +240,10 @@ export function generateFormation(
 
       const depths =
         entry.type === "sandbag" && archetype.sandbags === "guard"
-          ? [...ALL_DEPTHS.filter((d) => rowAtDepth(team, d) !== anchor.row), ...preferred]
+          ? [
+              ...ALL_DEPTHS.filter((d) => !nodes.some((a) => rowAtDepth(team, d) === a.row)),
+              ...preferred,
+            ]
           : preferred;
 
       // Preferred depths first, then anywhere legal — never emit a short army.

@@ -10,9 +10,9 @@ export type Team = "A" | "B";
 /** Four facings only. Roadmap §B.13 — permanently four, not eight. */
 export type Direction = "N" | "E" | "S" | "W";
 
-export type UnitTypeId = "soldier" | "mg" | "tank" | "mortar" | "sandbag" | "hq";
+export type UnitTypeId = "soldier" | "mg" | "atgun" | "tank" | "mortar" | "sandbag" | "hq";
 
-export type DamageType = "bullet" | "heavy" | "explosive";
+export type DamageType = "bullet" | "heavy" | "explosive" | "pierce";
 
 /** Target classes for the damage multiplier table (§C.1). */
 export type UnitClass = "infantry" | "armored" | "structure";
@@ -36,8 +36,10 @@ export interface UnitSpec {
   /** Tactical value — used by mortar cluster scoring and the tiebreak ladder (§B.9). */
   readonly value: number;
   readonly cost: number;
-  /** Footprint in tiles. HQ is 2x2; everything else is 1x1. */
-  readonly size: number;
+  /** Footprint width in tiles. */
+  readonly width: number;
+  /** Footprint height in tiles. HQ nodes are 1 wide by 2 deep. */
+  readonly height: number;
 
   // --- combat (absent for structures) ---
   readonly damage?: number;

@@ -115,7 +115,7 @@ function coneCandidates(state: BattleState, unit: Unit): Unit[] {
 function distanceTo(unit: Unit, other: Unit): number {
   // Nearest tile of a multi-tile target.
   let best = Number.POSITIVE_INFINITY;
-  for (const t of footprint(other.row, other.col, other.spec.size)) {
+  for (const t of footprint(other.row, other.col, other.spec.width, other.spec.height)) {
     const d = chebyshev(unit.row, unit.col, t.row, t.col);
     if (d < best) best = d;
   }

@@ -46,8 +46,8 @@ function tileFromPoint(x: number, y: number): Coord | null {
 /** Index of the unit occupying a tile, accounting for the 2x2 HQ. */
 function unitIndexAt(units: readonly PlacedUnit[], row: number, col: number): number {
   return units.findIndex((u) => {
-    const size = UNITS[u.type].size;
-    return row >= u.row && row < u.row + size && col >= u.col && col < u.col + size;
+    const { width, height } = UNITS[u.type];
+    return row >= u.row && row < u.row + height && col >= u.col && col < u.col + width;
   });
 }
 

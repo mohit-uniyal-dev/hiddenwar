@@ -25,6 +25,8 @@ export interface BattleState {
   readonly rng: Rng;
   /** Consecutive ticks with zero damage — drives the dead-air early end (§B.3). */
   ticksSinceDamage: number;
+  /** Damage each team has dealt to enemy HQ nodes — the timeout tiebreak. */
+  hqDamageDealt: { A: number; B: number };
   ended: boolean;
   winner: Winner | null;
   reason: VictoryReason | null;
@@ -64,7 +66,7 @@ export function buildState(a: Deployment, b: Deployment, rng: Rng): BattleState 
         destroyedAtTick: null,
       };
       units.push(unit);
-      for (const t of footprint(placed.row, placed.col, spec.size)) {
+      for (const t of footprint(placed.row, placed.col, spec.width, spec.height)) {
         occupancy[tileIndex(t.row, t.col)] = id;
       }
     }
@@ -83,6 +85,7 @@ export function buildState(a: Deployment, b: Deployment, rng: Rng): BattleState 
     events: [],
     rng,
     ticksSinceDamage: 0,
+    hqDamageDealt: { A: 0, B: 0 },
     ended: false,
     winner: null,
     reason: null,
@@ -109,7 +112,7 @@ export function isBlockerAt(state: BattleState, row: number, col: number): boole
 
 /** Remove a destroyed unit's footprint from the occupancy grid. */
 export function clearFootprint(state: BattleState, unit: Unit): void {
-  for (const t of footprint(unit.row, unit.col, unit.spec.size)) {
+  for (const t of footprint(unit.row, unit.col, unit.spec.width, unit.spec.height)) {
     if (state.occupancy[tileIndex(t.row, t.col)] === unit.id) {
       state.occupancy[tileIndex(t.row, t.col)] = EMPTY;
     }

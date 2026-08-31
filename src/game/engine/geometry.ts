@@ -135,12 +135,12 @@ export function splashArea(centre: Coord): Coord[] {
   return tiles;
 }
 
-/** The tiles a unit of the given footprint size occupies from its anchor. */
-export function footprint(row: number, col: number, size: number): Coord[] {
-  if (size === 1) return [{ row, col }];
+/** The tiles a unit occupies, anchored at its top-left. */
+export function footprint(row: number, col: number, width: number, height: number): Coord[] {
+  if (width === 1 && height === 1) return [{ row, col }];
   const tiles: Coord[] = [];
-  for (let r = row; r < row + size; r++) {
-    for (let c = col; c < col + size; c++) {
+  for (let r = row; r < row + height; r++) {
+    for (let c = col; c < col + width; c++) {
       tiles.push({ row: r, col: c });
     }
   }

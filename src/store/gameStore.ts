@@ -86,8 +86,15 @@ function remaining(deployment: Deployment, kit: Roster): Map<UnitTypeId, number>
 
 /** A deployment seeded with the automatic HQ, ready for the player to build on. */
 function withHq(team: Team, anchors: HqAnchors): Deployment {
-  const anchor = anchors[team];
-  return { team, units: [{ type: "hq", row: anchor.row, col: anchor.col, facing: "N" }] };
+  return {
+    team,
+    units: anchors[team].map((a) => ({
+      type: "hq" as const,
+      row: a.row,
+      col: a.col,
+      facing: "N" as const,
+    })),
+  };
 }
 
 let seedCounter = 0;

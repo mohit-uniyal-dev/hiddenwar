@@ -4,7 +4,7 @@ import type { Deployment, Direction, PlacedUnit, Team, UnitTypeId } from "../gam
 import { isComplete, remainingFor } from "../store/gameStore.ts";
 import { UnitIcon } from "./UnitIcon.tsx";
 
-const ORDER: UnitTypeId[] = ["soldier", "mg", "tank", "mortar", "sandbag", "hq"];
+const ORDER: UnitTypeId[] = ["soldier", "mg", "atgun", "tank", "mortar", "sandbag", "hq"];
 
 const PRIORITY_LABEL: Record<string, string> = {
   closest: "Nearest target",
@@ -18,6 +18,7 @@ const FACING_ARROW: Record<Direction, string> = { N: "▲", E: "▶", S: "▼", 
 const UNIT_ROLE: Record<UnitTypeId, string> = {
   soldier: "Reliable rifle squad",
   mg: "Wide cone · anti-infantry",
+  atgun: "Pierces every unit in its lane",
   tank: "Heavy armor · line breaker",
   mortar: "Indirect fire · splash",
   sandbag: "Cover · blocks sight",

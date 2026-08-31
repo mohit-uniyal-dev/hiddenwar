@@ -26,6 +26,17 @@ import type { UnitTypeId } from "../src/game/types.ts";
 import { applyArmyOverride } from "./armyOverride.ts";
 
 const args = process.argv.slice(2);
+
+/**
+ * EXPERIMENT: AT gun damage per unit in lane. --atgun 20
+ *
+ * The density-scaling property is what makes this unit interesting, so the
+ * ceiling is set by a soldier: 10 damage every 20 ticks = 0.5/tick. The AT gun
+ * fires every 48 ticks, so at 24 damage it merely MATCHES a soldier against a
+ * single target and beats it against two. Anything at or above 24 makes it a
+ * strictly better soldier and the density trade-off disappears.
+ */
+
 const ARMY = applyArmyOverride(args);
 const flag = (name: string, fallback: number): number => {
   const i = args.indexOf(`--${name}`);
@@ -33,6 +44,11 @@ const flag = (name: string, fallback: number): number => {
   const value = Number(args[i + 1]);
   return Number.isFinite(value) ? value : fallback;
 };
+
+const ATGUN_DMG = flag("atgun", 0);
+if (ATGUN_DMG > 0) {
+  (UNITS.atgun as { damage: number }).damage = ATGUN_DMG;
+}
 
 const MATCHES = flag("matches", 5000);
 /**
@@ -152,9 +168,7 @@ for (let i = 0; i < MATCHES; i++) {
 
   // Attribute every point of HQ damage to the unit type that dealt it.
   const typeOf = new Map(result.stats.units.map((u) => [u.id, u.type]));
-  const hqIds = new Set(
-    result.stats.units.filter((u) => u.type === "hq").map((u) => u.id),
-  );
+  const hqIds = new Set(result.stats.units.filter((u) => u.type === "hq").map((u) => u.id));
   for (const e of result.events) {
     if (e.type !== "DAMAGE" || !hqIds.has(e.targetId)) continue;
     const src = typeOf.get(e.sourceId);
@@ -211,7 +225,9 @@ console.log(`  draws                  ${pc(draws, MATCHES)}\n`);
 // every side fields every unit, so it is ~50% for everything and says nothing.
 // It only becomes a real signal once draft mode lets compositions differ.
 console.log("PER UNIT                 dmg share   kills/match   never fired   avg idle");
-const types: UnitTypeId[] = ["soldier", "mg", "tank", "mortar", "sandbag", "hq"];
+// Derived, not hardcoded: a hardcoded list silently omitted the AT Gun when it
+// was added, so the one unit under test was missing from its own report.
+const types = Object.keys(UNITS) as UnitTypeId[];
 for (const type of types) {
   const s = perUnit.get(type);
   if (s === undefined) continue;

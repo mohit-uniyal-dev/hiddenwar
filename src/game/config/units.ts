@@ -17,7 +17,8 @@ export const UNITS: Record<UnitTypeId, UnitSpec> = {
     unitClass: "infantry",
     value: 5,
     cost: 5,
-    size: 1,
+    width: 1,
+    height: 1,
     damage: 10,
     damageType: "bullet",
     minRange: 1,
@@ -36,7 +37,8 @@ export const UNITS: Record<UnitTypeId, UnitSpec> = {
     unitClass: "infantry",
     value: 12,
     cost: 12,
-    size: 1,
+    width: 1,
+    height: 1,
     // 8 damage to EACH of up to 3 distinct targets in the cone (§B.13).
     // This is what makes it a formation-punisher rather than a fast soldier.
     damage: 8,
@@ -49,6 +51,49 @@ export const UNITS: Record<UnitTypeId, UnitSpec> = {
     priority: "infantryFirst",
   },
 
+  /**
+   * The answer to concentration.
+   *
+   * Every other weapon deals fixed damage per shot, so a ten-unit column is no
+   * harder to shoot at than a two-unit one — stacking had no cost, and stacking
+   * the enemy HQ's lane was the measured dominant strategy at ~70% win rate.
+   * Buffing splash could not fix it: one mortar's throughput cannot scale to
+   * tax a ten-unit stack however hard it hits.
+   *
+   * The AT gun's per-shot output is LINEAR IN STACK SIZE — 12 to every unit in
+   * its lane. Against eight deep that is 96 a shot; against a dispersed line,
+   * 12. It also fires only along its facing and holds fire at an empty lane, so
+   * placing it is a public bet on where the enemy committed: the first piece in
+   * the game whose value depends mainly on the opponent's hidden choice.
+   */
+  atgun: {
+    id: "atgun",
+    name: "AT Gun",
+    hp: 40,
+    unitClass: "infantry",
+    value: 14,
+    cost: 14,
+    width: 1,
+    height: 1,
+    /*
+      22, not 12. A 4-deep zone caps a column at four units and formations
+      actually average 2.7, so the original 12 (sized for an 8-deep stack) left
+      the gun weaker than a soldier. 22 over a 48-tick cooldown is 0.458
+      damage/tick per target against a soldier's 0.5, so it is still the worse
+      pick against a lone target and only pays when it catches a cluster —
+      which is the whole point of the unit.
+    */
+    damage: 22,
+    // Hits everything in the lane, so the cap is effectively the board.
+    maxTargets: 99,
+    damageType: "pierce",
+    minRange: 1,
+    maxRange: 8,
+    cooldownTicks: toTicks(2.4), // 48
+    pattern: "line",
+    priority: "closest",
+  },
+
   tank: {
     id: "tank",
     name: "Tank",
@@ -56,7 +101,8 @@ export const UNITS: Record<UnitTypeId, UnitSpec> = {
     unitClass: "armored",
     value: 20,
     cost: 20,
-    size: 1,
+    width: 1,
+    height: 1,
     // 40 heavy x 1.5 vs structure = 60 = exactly one sandbag. The breach
     // cadence depends on this equality holding (§D.2).
     damage: 40,
@@ -75,7 +121,8 @@ export const UNITS: Record<UnitTypeId, UnitSpec> = {
     unitClass: "infantry",
     value: 15,
     cost: 15,
-    size: 1,
+    width: 1,
+    height: 1,
     damage: 30,
     splashPercent: 50,
     damageType: "explosive",
@@ -98,21 +145,25 @@ export const UNITS: Record<UnitTypeId, UnitSpec> = {
     unitClass: "structure",
     value: 1,
     cost: 3,
-    size: 1,
+    width: 1,
+    height: 1,
     blocksLineOfSight: true,
   },
 
   hq: {
     id: "hq",
-    name: "HQ",
-    hp: 200,
+    name: "HQ Node",
+    hp: 100,
     unitClass: "structure",
     // Value 40 is load-bearing: it makes a defended HQ the largest cluster on
     // the board, so the mortar becomes the turtle-breaker with no special-case
     // rule (§B.9).
     value: 40,
     cost: 0,
-    size: 2,
+    // A node is one column wide and two rows deep: two of them cost the same
+    // four tiles the old single 2x2 HQ did.
+    width: 1,
+    height: 2,
     blocksLineOfSight: true,
   },
 };
@@ -138,11 +189,13 @@ export type Roster = ReadonlyArray<{ readonly type: UnitTypeId; readonly count: 
  */
 export const MVP_ARMY: Roster = [
   { type: "soldier", count: 5 },
-  { type: "mg", count: 3 },
+  { type: "mg", count: 2 },
+  { type: "atgun", count: 1 },
   { type: "tank", count: 1 },
   { type: "mortar", count: 1 },
   { type: "sandbag", count: 8 },
-  { type: "hq", count: 1 },
+  // Two nodes, and BOTH must fall. Total structure HP is unchanged at 200.
+  { type: "hq", count: 2 },
 ];
 
 /**
